@@ -1,0 +1,10 @@
+package-lock.json
+migrations/
+node_modules/
+prisma/
+.env
+test.ts
+lib/*.js
+lib/platforms/*.js
+util/*.js
+/*.js

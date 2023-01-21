@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "module": "CommonJS",
+    "target": "ES6",
+    "paths": {
+      "@prisma/*": ["./prisma/*"]
+    }
+  }
+}

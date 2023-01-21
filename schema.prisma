@@ -1,0 +1,86 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "./prisma/prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Deposit {
+  txid String @unique
+  outIdx Int
+  // Deposit amount, in satoshis
+  value String
+  userId String
+  timestamp DateTime
+  confirmed Boolean @default(false)
+  user User @relation(fields: [userId], references: [id])
+  @@index([txid, userId, confirmed])
+}
+
+model Withdrawal {
+  txid String @unique
+  value String
+  timestamp DateTime
+  userId String
+  user User @relation(fields: [userId], references: [id])
+  @@index([txid, userId])
+}
+
+model Give {
+  id String @id
+  platform String
+  timestamp DateTime
+  fromId String
+  toId String
+  from User @relation("from", fields: [fromId], references: [id])
+  to User @relation("to", fields: [toId], references: [id])
+  // Amount given, in satoshis
+  value String
+  @@index([platform, fromId, toId])
+}
+
+model Account {
+  id String @id
+  users User[]
+}
+
+model User {
+  id String @id
+  secret String @unique
+  accountId String
+  telegram UserTelegram?
+  twitter UserTwitter?
+  account Account @relation(fields: [accountId], references: [id])
+  key WalletKey?
+  deposits Deposit[]
+  withdrawals Withdrawal[]
+  gives Give[] @relation("from")
+  receives Give[] @relation("to")
+}
+
+model UserTelegram {
+  id String @id
+  userId String @unique
+  user User @relation(fields: [userId], references: [id])
+}
+
+model UserTwitter {
+  id String @id
+  userId String @unique
+  user User @relation(fields: [userId], references: [id])
+}
+
+model WalletKey {
+  mnemonic String @unique
+  hdPrivKey Bytes @unique
+  hdPubKey Bytes @unique
+  userId String @unique
+  user User @relation(fields: [userId], references: [id])
+  @@index([userId])
+}
