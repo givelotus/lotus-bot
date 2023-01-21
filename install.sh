@@ -28,5 +28,5 @@ sudo -u $USER npx prisma migrate dev --name init
 sudo -u $USER sqlite3 ./prisma/dev.db 'PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;'
 
 # Install service files
-cp ./install/lotus-bot-*.service /etc/systemd/system
+mkdir -p $HOMEDIR/.config/systemd/user && cp ./install/lotus-bot-*.service $HOMEDIR/.config/systemd/user
 systemctl daemon-reload
