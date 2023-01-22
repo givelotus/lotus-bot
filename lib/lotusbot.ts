@@ -84,7 +84,7 @@ export default class LotusBot {
 
   private _initWalletManager = async () => {
     try {
-      const keys = await this.prisma.getAllWalletKeys();
+      const keys = await this.prisma.getPlatformWalletKeys();
       if (keys.length < 1) {
         this._log(DB, 'initializing default bot account');
         await this._saveAccount({ platformId: this.botId, forBot: true });
@@ -110,7 +110,7 @@ export default class LotusBot {
       const utxos = this.wallets
         .getUtxos()
         .filter(utxo => utxo.userId != BOT.UUID);
-      const deposits = await this.prisma.getDeposits({});
+      const deposits = await this.prisma.getPlatformDeposits({});
       const newDeposits = utxos.filter(u => {
         const idx = deposits.findIndex(d => u.txid == d.txid);
         return idx < 0;
@@ -127,7 +127,9 @@ export default class LotusBot {
   private _initConfirmDeposits = async () => {
     this._log(MAIN, `confirming applicable deposits`);
     try {
-      const deposits = await this.prisma.getDeposits({ unconfirmed: true });
+      const deposits = await this.prisma.getPlatformDeposits({
+        unconfirmed: true
+      });
       for (const d of deposits) {
         const outpoint = WalletManager.toOutpoint(d);
         const [ result ] = await this.wallets.checkUtxosConfirmed([outpoint]);
