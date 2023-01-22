@@ -73,26 +73,45 @@ export class Database {
       throw new Error(`isValidUser: ${e.message}`);
     }
   };
-  /** Get WalletKeys for all users */
-  getAllWalletKeys = async () => {
+  /** Get WalletKeys for all platform users */
+  getPlatformWalletKeys = async () => {
     try {
-      return await this.prisma.walletKey.findMany({
-        select: { userId: true, hdPrivKey: true }
+      const result = await this.prisma[this.platformTable].findMany({
+        select: { user: {
+          select: { id: true, key: {
+            select: { hdPrivKey: true }
+          }}
+        }}
+      });
+      return result.map(({ user }) => {
+        return {
+          userId: user.id,
+          hdPrivKey: user.key.hdPrivKey
+        };
       });
     } catch (e: any) {
       throw new Error(`getAllWalletKeys: ${e.message}`);
     }
   };
-  /** Get either all deposits or all unconfirmed deposits */
-  getDeposits = async ({
+  /** Get all deposits or all unconfirmed deposits of platform users */
+  getPlatformDeposits = async ({
     unconfirmed = false
   }: {
     unconfirmed?: boolean
   }) => {
     try {
-      return await this.prisma.deposit.findMany({
-        where: unconfirmed ? { confirmed: false } : undefined
+      const result = await this.prisma[this.platformTable].findMany({
+        select: { user: {
+          select: { deposits: {
+            where: unconfirmed ? { confirmed: false } : undefined
+          }}
+        }}
       });
+      const deposits: Deposit[] = [];
+      for (const { user } of result) {
+        deposits.push(...user.deposits);
+      }
+      return deposits;
     } catch (e: any) {
       throw new Error(`getAllDeposits: ${e.message}`);
     }
