@@ -2,6 +2,7 @@ import { PrismaClient } from "../prisma/prisma-client-js";
 import { PlatformDatabaseTable } from "./platforms";
 import { AccountUtxo } from "./wallet";
 import * as Util from '../util';
+import { BOT } from "../util/constants";
 
 type Deposit = AccountUtxo & {
   timestamp: Date,
@@ -45,6 +46,17 @@ export class Database {
   connect = async () => await this.prisma.$connect();
   disconnect = async () => await this.prisma.$disconnect();
 
+  botUserExists = async () => {
+    try {
+      const result = await this.prisma.user.findFirst({
+        where: { id: BOT.UUID }
+      });
+      return result?.id ? true : false;
+    } catch (e: any) {
+
+    }
+  };
+
   /** Check to make sure deposit exists. Used when confirming deposits. */
   isValidDeposit = async (
     txid: string
@@ -71,6 +83,19 @@ export class Database {
       return result?.userId ? true : false;
     } catch (e: any) {
       throw new Error(`isValidUser: ${e.message}`);
+    }
+  };
+  getBotWalletKey = async () => {
+    try {
+      const result = await this.prisma.walletKey.findFirst({
+        where: { userId: BOT.UUID }
+      });
+      return {
+        userId: result.userId,
+        hdPrivKey: result.hdPrivKey
+      };
+    } catch (e: any) {
+      throw new Error(`getBotWalletKey: ${e.message}`);
     }
   };
   /** Get WalletKeys for all platform users */
