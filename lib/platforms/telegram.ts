@@ -1,27 +1,18 @@
 import { EventEmitter } from "node:stream";
 import { setTimeout } from "node:timers/promises";
+import { format } from 'node:util';
 import {
   Context,
   Telegraf,
 } from "telegraf";
 import { Platform } from '.';
+import { BOT } from '../../util/constants';
 import {
   parseGive,
   parseWithdraw
 } from '../../util';
 import config from '../../config'
 import { Message } from "telegraf/typings/core/types/typegram";
-
-const ERR_DM_REQUIRED =
-  'Please send me this command in a DM';
-const ERR_GIVE_NOT_DM_COMMAND =
-  'This command does not work in a DM';
-const ERR_GIVE_MUST_REPLY_TO_OTHER_USER =
-  'You must reply to another user to give Lotus';
-const ERR_GIVE_AMOUNT_INVALID =
-  'Invalid amount specified';
-const ERR_GIVE_TO_BOT =
-  'I appreciate the thought, but you cannot give me Lotus. :)';
 
 export declare interface Telegram {
   on(event: 'Balance', callback: (
@@ -86,9 +77,12 @@ implements Platform {
   ) => {
     try {
       await setTimeout(this._calcReplyDelay());
-      const msg =
-        `${fromUsername}, you have given ${amount} XPI ` +
-        `to ${toUsername}! 🪷`;
+      const msg = format(
+        BOT.MESSAGE.GIVE,
+        fromUsername,
+        amount,
+        toUsername
+      );
       await this.bot.telegram.sendMessage(chatId, msg, {
         reply_to_message_id: replyToMessageId
       });
@@ -104,7 +98,7 @@ implements Platform {
   ) => {
     try {
       await setTimeout(this._calcReplyDelay());
-      const msg = `Your balance is ${balance} XPI`;
+      const msg = format(BOT.MESSAGE.BALANCE, balance);
       await this.bot.telegram.sendMessage(platformId, msg);
       this.lastReplyTime = Date.now();
     } catch (e: any) {
@@ -118,10 +112,11 @@ implements Platform {
   ) => {
     try {
       await setTimeout(this._calcReplyDelay());
-      const msg =
-        `Send Lotus here to fund your account: \`${address}\`\r\n\r\n` +
-        `[View address on the Explorer]` +
-        `(${config.wallet.explorerUrl}/address/${address})`;
+      const msg = format(
+        BOT.MESSAGE.DEPOSIT,
+        address,
+        `${config.wallet.explorerUrl}/address/${address}`
+      );
       await this.bot.telegram.sendMessage(platformId, msg,
         { parse_mode: 'Markdown' }
       );
@@ -138,11 +133,12 @@ implements Platform {
   ) => {
     try {
       await setTimeout(this._calcReplyDelay());
-      await this.bot.telegram.sendMessage(
-        platformId,
-        `I received your deposit of ${amount} XPI. ` +
-        `I will let you know when it confirms.\r\n\r\n` +
-        `[View tx on the Explorer](${config.wallet.explorerUrl}/tx/${txid})`,
+      const msg = format(
+        BOT.MESSAGE.DEPOSIT_RECV,
+        amount,
+        `${config.wallet.explorerUrl}/tx/${txid}`
+      );
+      await this.bot.telegram.sendMessage(platformId, msg,
         { parse_mode: 'Markdown' }
       );
       this.lastReplyTime = Date.now();
@@ -159,11 +155,13 @@ implements Platform {
   ) => {
     try {
       await setTimeout(this._calcReplyDelay());
-      await this.bot.telegram.sendMessage(
-        platformId,
-        `Your deposit of ${amount} XPI has been confirmed! ` + 
-        `Your balance is now ${balance} XPI\r\n\r\n` +
-        `[View tx on the Explorer](${config.wallet.explorerUrl}/tx/${txid})`,
+      const msg = format(
+        BOT.MESSAGE.DEPOSIT_CONF,
+        amount,
+        balance,
+        `${config.wallet.explorerUrl}/tx/${txid}`
+      )
+      await this.bot.telegram.sendMessage(platformId, msg,
         { parse_mode: 'Markdown' }
       );
       this.lastReplyTime = Date.now();
@@ -180,9 +178,12 @@ implements Platform {
     try {
       await setTimeout(this._calcReplyDelay());
       const msg = error
-        ? `There was an error with your withdrawal: \`${error}\``
-        : `Withdrawal of ${amount} XPI successful!\r\n\r\n` +
-          `[View tx on the Explorer](${config.wallet.explorerUrl}/tx/${txid})`;
+        ? format(BOT.MESSAGE.WITHDRAW_FAIL, error)
+        : format(
+          BOT.MESSAGE.WITHDRAW_OK,
+          amount,
+          `${config.wallet.explorerUrl}/tx/${txid}`
+        );
       await this.bot.telegram.sendMessage(platformId, msg,
         { parse_mode: 'Markdown' }
       );
@@ -198,7 +199,7 @@ implements Platform {
   ) => {
     if (ctx.chat.type !== 'private') {
       return await ctx.sendMessage(
-        ERR_DM_REQUIRED,
+        BOT.MESSAGE.ERR_DM_COMMAND,
         { reply_to_message_id: ctx.message.message_id }
       );
     }
@@ -247,7 +248,7 @@ implements Platform {
       const replyToMessageId = ctx.message.message_id;
       if (ctx.message.chat.type == 'private') {
         return await ctx.sendMessage(
-          ERR_GIVE_NOT_DM_COMMAND,
+          BOT.MESSAGE.ERR_NOT_DM_COMMAND,
           { reply_to_message_id: replyToMessageId }
         );
       }
@@ -261,13 +262,13 @@ implements Platform {
         fromId == toId
       ) {
         return await ctx.sendMessage(
-          ERR_GIVE_MUST_REPLY_TO_OTHER_USER,
+          BOT.MESSAGE.ERR_GIVE_MUST_REPLY_TO_USER,
           { reply_to_message_id: replyToMessageId }
         );
       }
       if (toId == ctx.botInfo.id) {
         return await ctx.sendMessage(
-          ERR_GIVE_TO_BOT,
+          BOT.MESSAGE.ERR_GIVE_TO_BOT,
           { reply_to_message_id: replyToMessageId }
         )
       }
@@ -276,7 +277,7 @@ implements Platform {
       const amountInt = Number(amount);
       if (isNaN(amountInt) || amountInt <= 0) {
         return await ctx.sendMessage(
-          ERR_GIVE_AMOUNT_INVALID,
+          BOT.MESSAGE.ERR_AMOUNT_INVALID,
           { reply_to_message_id: replyToMessageId }
         );
       }
