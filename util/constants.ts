@@ -15,9 +15,7 @@ export const WALLET = {
 // Default transaction parameters
 export const TRANSACTION = {
   /** Default withdrawal fee, in satoshis */
-  FEE: 10000,
-  /** Default withdrawal fee rate, in satoshis */
-  FEE_RATE: 2,
+  FEE: 100000,
   /** Default output dust limit */
   DUST_LIMIT: 546,
-}
+};
