@@ -79,7 +79,12 @@ export class WalletManager extends EventEmitter {
       throw new Error(`init: ${e.message}`);
     }
   };
-  closeWsEndpoint = () => this.chronikWs.close();
+  closeWsEndpoint = () => {
+    for (const key of this.keys) {
+      this._chronikWsUnsubscribe(key.script);
+    }
+    this.chronikWs.close();
+  };
   getBotAddress = () => this.getKey(BOT.UUID).address;
   getUtxos = () => this.utxos;
   getUtxoBalance = () => {
@@ -162,7 +167,7 @@ export class WalletManager extends EventEmitter {
         tx.addInput(this._toPKHInput(utxo, key.script));
         signingKeys.push(key.signingKey);
         spentUtxos.push(utxo);
-        if (tx._inputAmount > wSats + TRANSACTION.FEE) {
+        if (tx.inputAmount > wSats + TRANSACTION.FEE) {
           break;
         }
       };
@@ -275,7 +280,8 @@ export class WalletManager extends EventEmitter {
   private _chronikWsUnsubscribe = (
     script: Script
   ) => {
-    
+    const { scriptType, outputScript } = this._chronikScriptData(script);
+    this.chronikWs.unsubscribe(scriptType, outputScript);
   };
   /** Used for detecting and processing user deposits */
   private _chronikHandleWsMessage = async (
