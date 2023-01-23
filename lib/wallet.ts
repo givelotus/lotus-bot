@@ -167,7 +167,7 @@ export class WalletManager extends EventEmitter {
         tx.addInput(this._toPKHInput(utxo, key.script));
         signingKeys.push(key.signingKey);
         spentUtxos.push(utxo);
-        if (tx._inputAmount > wSats + TRANSACTION.FEE) {
+        if (tx.inputAmount > wSats + TRANSACTION.FEE) {
           break;
         }
       };
