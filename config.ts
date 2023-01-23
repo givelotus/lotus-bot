@@ -8,7 +8,10 @@ type ParsedConfig = {
   wallet: {
     chronikUrl: string,
     explorerUrl: string,
-  }
+  },
+  tx: {
+    feeRate: number
+  },
   dbUrl: string
 };
 
@@ -30,6 +33,9 @@ class Config {
       wallet: {
         chronikUrl: process.env.WALLET_CHRONIK_URL,
         explorerUrl: process.env.WALLET_EXPLORER_URL
+      },
+      tx: {
+        feeRate: Number(process.env.TX_FEE_RATE)
       },
       dbUrl: process.env.DATABASE_URL,
     };
