@@ -21,7 +21,6 @@ export default class LotusBot {
   private platform: string;
   private apiKey: string;
   private bot: Platforms.Platform;
-  private botId: string;
 
   constructor() {
     this.platform = process.argv[2];
@@ -52,7 +51,6 @@ export default class LotusBot {
     this.bot.on('Give', this._handleGiveCommand);
     this.bot.on('Withdraw', this._handleWithdrawCommand);
 
-    this.botId = this.bot.getBotId();
     const botAddress = this.wallets.getBotAddress().toXAddress();
     console.log(`***`);
     console.log(`* Bot address: ${botAddress}`);
@@ -85,9 +83,12 @@ export default class LotusBot {
   private _initWalletManager = async () => {
     try {
       const keys = await this.prisma.getPlatformWalletKeys();
-      if (keys.length < 1) {
+      if (!(await this.prisma.botUserExists())) {
         this._log(DB, 'initializing default bot account');
-        await this._saveAccount({ platformId: this.botId, forBot: true });
+        await this._saveAccount({ forBot: true });
+      } else {
+        const { userId, hdPrivKey } = await this.prisma.getBotWalletKey();
+        keys.push({ userId, hdPrivKey });
       }
       await this.wallets.init(
         keys.map(key => {
