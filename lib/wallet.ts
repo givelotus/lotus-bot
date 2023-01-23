@@ -82,6 +82,10 @@ export class WalletManager extends EventEmitter {
   closeWsEndpoint = () => this.chronikWs.close();
   getBotAddress = () => this.getKey(BOT.UUID).address;
   getUtxos = () => this.utxos;
+  getUtxoBalance = () => {
+    return this.utxos
+      .reduce((prev, curr) => prev + Number(curr.value), 0);
+  };
   getKey = (
     userId: string
   ): WalletKey | undefined => {
