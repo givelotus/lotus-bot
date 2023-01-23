@@ -51,14 +51,17 @@ export default class LotusBot {
     this.bot.on('Give', this._handleGiveCommand);
     this.bot.on('Withdraw', this._handleWithdrawCommand);
 
+    const utxoBalance = this.wallets.getUtxoBalance();
     const botAddress = this.wallets.getBotAddress().toXAddress();
-    console.log(`***`);
-    console.log(`* Bot address: ${botAddress}`);
-    console.log(`* Use this address to add funds for withdrawal tx fees`);
-    console.log(`***`);
-
-    /** TEST STUFF; REMOVE LATER */
-    // console.log(await this.prisma.getAllAccounts());
+    const initMsg =
+      `***\r\n` +
+      `* Lotus Bot has initialized successfully!\r\n` +
+      `* Total UTXO balance: ${utxoBalance} sats\r\n` +
+      `***\r\n` +
+      `* *NOTE*: Make sure you deposit at least 100 XPI to this address to\r\n` +
+      `*         pay withdrawal fees: ${botAddress}\r\n` +
+      `***`;
+    console.log(initMsg);
   };
 
   private _initBot = async () => {
@@ -345,6 +348,8 @@ export default class LotusBot {
         this.platform,
         `${platformId}: withdraw: user notified of success: ${wSats} sats`
       );
+      const totalUtxoBalance = this.wallets.getUtxoBalance();
+      this._log(WALLET, `total UTXO balance: ${totalUtxoBalance} sats`);
     } catch (e: any) {
       throw new Error(`_handleWithdrawCommand: ${e.message}`);
     }
@@ -388,13 +393,15 @@ export default class LotusBot {
   private _saveDeposit = async (
     utxo: AccountUtxo
   ) => {
-    if (utxo.userId == BOT.UUID) {
-      this._log(DB, `deposit is for bot address: skipping`);
-      return;
-    }
     const timestamp = new Date();
     const data = { ...utxo, timestamp };
     try {
+      const totalUtxoBalance = this.wallets.getUtxoBalance();
+      this._log(WALLET, `total UTXO balance: ${totalUtxoBalance} sats`);
+      if (utxo.userId == BOT.UUID) {
+        this._log(DB, `deposit is for bot address: skipping`);
+        return;
+      }
       const deposit = await this.prisma.saveDeposit(data);
       const platformId = deposit.user[this.platform.toLowerCase()].id;
       this._log(DB, `deposit saved: ${utxo.txid}`);
