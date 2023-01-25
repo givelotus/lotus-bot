@@ -51,17 +51,13 @@ export class WalletManager extends EventEmitter {
   // Wallet properties
   private keys: WalletKey[] = [];
   private utxos: AccountUtxo[] = [];
-  /**
-   * Provides all off- and on-chain functionality for all users' Wallet Keys.
-   */
+  /** Provides all off- and on-chain wallet functionality */
   constructor() {
     super();
     this.chronik = new ChronikClient(config.wallet.chronikUrl);
     this.chronikWs = this.chronik.ws({
       onMessage: this._chronikHandleWsMessage
     });
-    // this.mnemonic = config.wallet.mnemonic;
-    // this.hdPrivKey = HDPrivateKey.fromSeed(this._getMnemonicSeedBuffer());
   };
   /** 
    * - Initialize Chronik WS
@@ -78,9 +74,10 @@ export class WalletManager extends EventEmitter {
         await this.loadKey(user);
       }
     } catch (e: any) {
-      throw new Error(`init: ${e.message}`);
+      throw new Error(`WalletManager: init: ${e.message}`);
     }
   };
+  /** Unsubscribe and close Chronik WS */
   closeWsEndpoint = () => {
     for (const key of this.keys) {
       this._chronikWsUnsubscribe(key);
@@ -89,15 +86,18 @@ export class WalletManager extends EventEmitter {
   };
   getBotAddress = () => this.getKey(BOT.UUID).address;
   getUtxos = () => this.utxos;
+  /** Count balance of entire in-memory UTXO set */
   getUtxoBalance = () => {
     return this.utxos
       .reduce((prev, curr) => prev + Number(curr.value), 0);
   };
+  /** Return single `WalletKey` of `userId` */
   getKey = (
     userId: string
   ): WalletKey | undefined => {
     return this.keys.find(key => key.userId == userId);
   };
+  /** Check if given outpoint(s) have been confirmed by network */
   checkUtxosConfirmed = async (
     outpoints: OutPoint[]
   ) => {
@@ -230,24 +230,8 @@ export class WalletManager extends EventEmitter {
       throw new Error(`_getUtxos: ${e.message}`);
     }
   };
-  private _getHDPrivateKey = (
-    mnemonic: string
-  ) => {
-    try {
-      const seed = new Mnemonic(mnemonic).toSeed();
-      return HDPrivateKey.fromSeed(seed);
-    } catch (e: any) {
-      throw new Error(`getHDPrivateKey: ${e.message}`);
-    }
-  };
   /**
-   * Gets the derived privkey for `keyIdx` from the specified chain. 
-   * If external address, chain is `0`; if change address, chain is `1`.
-   * 
-   * Defaults to `keyIdx` of 0 for the Bot's signing key
-   * 
-   * Example external address: `m/44'/10605'/0'/0/7`
-   * Example change address: `m/44'/10605'/0'/1/2`
+   * Derive single `PrivateKey` from account's `HDPrivateKey`
    */
   private _getDerivedSigningKey = (
     hdPrivKey: HDPrivateKey
@@ -263,7 +247,9 @@ export class WalletManager extends EventEmitter {
       throw new Error(`getDerivedPrivKey: ${e.message}`);
     }
   };
-  /** Gets the account's external deposit address */
+  /**
+   * Convert `PrivateKey` into `Address`
+   */
   private _getAddressFromSigningKey = (
     signingKey: PrivateKey
   ): Address => {
@@ -404,9 +390,11 @@ export class WalletManager extends EventEmitter {
   };
   /** Generates a new 12-word mnemonic phrase */
   static newMnemonic = () => new Mnemonic();
+  /** Gets `HDPrivateKey` from mnemonic seed buffer */
   static newHDPrivateKey = (
     mnemonic: Mnemonic
   ) => HDPrivateKey.fromSeed(mnemonic.toSeed());
+  /** Instantiate Prisma HDPrivateKey buffer as `HDPrivateKey` */
   static hdPrivKeyFromBuffer = (
     hdPrivKeyBuf: Buffer
   ) => new HDPrivateKey(hdPrivKeyBuf);
