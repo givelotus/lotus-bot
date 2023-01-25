@@ -1,8 +1,11 @@
-import { Telegram } from './telegram';
-import { Twitter } from './twitter';
+import { Telegram, TelegramMessage } from './telegram';
+import { Twitter, TwitterMessage } from './twitter';
 
 export { Telegram, Twitter };
 export type PlatformDatabaseTable = 'userTelegram' | 'userTwitter';
+export type Message =
+  | TelegramMessage
+  | TwitterMessage;
 
 export interface Platform {
   /**
@@ -17,8 +20,16 @@ export interface Platform {
   /** EventEmitter handlers */
   on: (event: string, callback: (...params: any) => void) => this;
   getBotId: () => string;
-  sendBalanceReply: (platformId: string, balance: string) => Promise<void>;
-  sendDepositReply: (platformId: string, address: string) => Promise<void>;
+  sendBalanceReply: (
+    platformId: string,
+    balance: string,
+    message?: Message
+   ) => Promise<void>;
+  sendDepositReply: (
+    platformId: string,
+    address: string,
+    message?: Message
+  ) => Promise<void>;
   sendDepositReceived: (
     platformId: string,
     txid: string,
@@ -35,7 +46,8 @@ export interface Platform {
     replyToMessageId: number,
     fromUsername: string,
     toUsername: string,
-    amount: string
+    amount: string,
+    message?: Message
   ) => Promise<void>;
   sendWithdrawReply: (
     platformId: string,
@@ -47,6 +59,7 @@ export interface Platform {
       txid?: string,
       amount?: string,
       error?: string
-    }
+    },
+    message?: Message
   ) => Promise<void>;
 };
