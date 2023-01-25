@@ -207,7 +207,18 @@ export class WalletManager extends EventEmitter {
       throw new Error(`processWithdrawal: ${e.message}`);
     }
   };
-  /** Fetch UTXOs from Chronik API for provided `Script` */
+  /**
+   * Ensure Chronik `AddedToMempool` doesn't corrupt the in-memory UTXO set
+   */
+  private _isExistingUtxo = (
+    utxo: AccountUtxo
+  ) => {
+    return this.utxos.find(existing => {
+      return existing.txid == utxo.txid
+        && existing.outIdx == utxo.outIdx
+    });
+  }
+  /** Fetch UTXOs from Chronik API for provided `WalletKey` */
   private _getUtxos = async (
     key: WalletKey
   ): Promise<Utxo[]> => {
@@ -318,6 +329,8 @@ export class WalletManager extends EventEmitter {
             value: outputs[outIdx].value,
             userId: key.userId
           };
+          if (this._isExistingUtxo(accountUtxo)) {
+            return;
           }
           this.utxos.push(accountUtxo);
           return this.emit('AddedToMempool', accountUtxo);
