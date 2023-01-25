@@ -28,6 +28,8 @@ export type WalletKey = {
   signingKey: PrivateKey;
   address: Address;
   script: Script;
+  scriptHex: string;
+  scriptType: ScriptType;
 };
 
 export type AccountUtxo = {
@@ -81,7 +83,7 @@ export class WalletManager extends EventEmitter {
   };
   closeWsEndpoint = () => {
     for (const key of this.keys) {
-      this._chronikWsUnsubscribe(key.script);
+      this._chronikWsUnsubscribe(key);
     }
     this.chronikWs.close();
   };
@@ -127,13 +129,23 @@ export class WalletManager extends EventEmitter {
       const signingKey = this._getDerivedSigningKey(hdPrivKey);
       const address = this._getAddressFromSigningKey(signingKey);
       const script = this._getScriptFromAddress(address);
-      this.keys.push({ userId, signingKey, address, script });
+      const scriptHex = script.getData().toString('hex');
+      const scriptType = this._chronikScriptType(address);
+      const key = {
+        userId,
+        signingKey,
+        address,
+        script,
+        scriptHex,
+        scriptType
+      };
+      this.keys.push(key);
 
-      const utxos = await this._getUtxos(script);
+      const utxos = await this._getUtxos(key);
       const AccountUtxos = utxos?.map(utxo => this._toAccountUtxo(userId, utxo));
       this.utxos.push(...AccountUtxos);
 
-      this._chronikWsSubscribe(script);
+      this._chronikWsSubscribe(key);
     } catch (e: any) {
       throw new Error(`loadKey: ${userId}: ${e.message}`);
     }
@@ -152,7 +164,7 @@ export class WalletManager extends EventEmitter {
     wSats: number
   ): Promise<string> => {
     // Setup output parameters
-    const wScript = Script.fromAddress(wAddress);
+    const wScript = this._getScriptFromAddress(wAddress);
     // TODO: check User's balance against withdrawal amount
     // Gather UTXOs to use for inputs until amount > wSats + fee
     const signingKeys = [];
@@ -197,10 +209,10 @@ export class WalletManager extends EventEmitter {
   };
   /** Fetch UTXOs from Chronik API for provided `Script` */
   private _getUtxos = async (
-    script: Script
+    key: WalletKey
   ): Promise<Utxo[]> => {
     try {
-      const scriptEndpoint = this._chronikScriptEndpoint(script);
+      const scriptEndpoint = this._chronikScriptEndpoint(key);
       const [ result ] = await scriptEndpoint.utxos();
       return result?.utxos || [];
     } catch (e: any) {
@@ -250,9 +262,9 @@ export class WalletManager extends EventEmitter {
       throw new Error(`_getAddressFromSigningKey: ${e.message}`);
     }
   };
-  /** Get the `Script` of the account's external deposit `Address` */
+  /** Convert `Address` string or class to `Script` */
   private _getScriptFromAddress = (
-    address: Address
+    address: string | Address
   ): Script => {
     try {
       return Script.fromAddress(address);
@@ -272,27 +284,46 @@ export class WalletManager extends EventEmitter {
   };
   /** Subscribe `Script` to Chronik WS for UTXO updates */
   private _chronikWsSubscribe = (
-    script: Script
+    key: WalletKey
   ) => {
-    const { scriptType, outputScript } = this._chronikScriptData(script);
-    this.chronikWs.subscribe(scriptType, outputScript);
+    this.chronikWs.subscribe(key.scriptType, key.scriptHex);
   };
+  /** Unsubscribe `Script` from Chronik WS */
   private _chronikWsUnsubscribe = (
-    script: Script
+    key: WalletKey
   ) => {
-    const { scriptType, outputScript } = this._chronikScriptData(script);
-    this.chronikWs.unsubscribe(scriptType, outputScript);
+    this.chronikWs.unsubscribe(key.scriptType, key.scriptHex);
   };
-  /** Used for detecting and processing user deposits */
+  /** Detect and process Chronik WS messages */
   private _chronikHandleWsMessage = async (
     msg: SubscribeMsg
   ) => {
     try {
       switch (msg.type) {
-        // New user deposit detected in mempool
+        /**
+         * New user deposit detected in mempool
+         */
         case 'AddedToMempool':
-          return await this._chronikWsAddedToMempool(msg.txid);
-        // User deposit confirmed
+          const { outputs } = await this.chronik.tx(msg.txid);
+          const outScripts = outputs.map(output => output.outputScript);
+          const key = this.keys.find(key => {
+            return outScripts.includes(key.script.toHex());
+          });
+          const outIdx = outScripts.findIndex(
+            outScript => key.script.toHex() == outScript
+          );
+          const accountUtxo = {
+            txid: msg.txid,
+            outIdx,
+            value: outputs[outIdx].value,
+            userId: key.userId
+          };
+          }
+          this.utxos.push(accountUtxo);
+          return this.emit('AddedToMempool', accountUtxo);
+        /**
+         * User deposit confirmed
+         */
         case 'Confirmed':
           return this.emit('Confirmed', msg.txid);
       }
@@ -300,58 +331,20 @@ export class WalletManager extends EventEmitter {
       throw new Error(`_chronikHandleWsMessage: ${e.message}`);
     }
   };
-  private _chronikWsAddedToMempool = async (
-    txid: string
-  ) => {
-    try {
-      const { outputs } = await this.chronik.tx(txid);
-      const outScripts = outputs.map(output => output.outputScript);
-      const key = this.keys.find(key => {
-        const scriptHex = key.script.toHex();
-        return outScripts.includes(scriptHex);
-      });
-      const scriptHex = key.script.toHex();
-      const outIdx = outScripts.findIndex(script => scriptHex == script);
-      const accountUtxo = {
-        txid,
-        outIdx,
-        value: outputs[outIdx].value,
-        userId: key.userId
-      };
-      this.utxos.push(accountUtxo);
-      return this.emit('AddedToMempool', accountUtxo);
-    } catch (e: any) {
-      throw new Error(`_chronikWsAddedToMempool: ${e.message}`);
-    }
-  };
-  /** Converts a `Script` into a Chronik `ScriptEndpoint` */
+  /** Get Chronik `ScriptEndpoint` from `WalletKey` */
   private _chronikScriptEndpoint = (
-    script: Script
+    key: WalletKey
   ): ScriptEndpoint => {
     try {
-      const { outputScript, scriptType } = this._chronikScriptData(script);
-      return this.chronik.script(scriptType, outputScript);
+      return this.chronik.script(key.scriptType, key.scriptHex);
     } catch (e: any) {
       throw new Error(`_chronikScriptEndpoint: ${e.message}`);
     }
   };
-  /** Gathers required data for `this.getScriptEndpoint()` */
-  private _chronikScriptData = (
-    script: Script
-  ) => {
-    try {
-      const scriptType = this._chronikScriptType(script);
-      const outputScript = script.getData().toString('hex');
-      return { scriptType, outputScript };
-    } catch (e: any) {
-      throw new Error(`_chronikScriptData: ${e.message}`);
-    }
-  };
-  /** Return the Chronik-compatible `ScriptType` */
+  /** Return the Chronik `ScriptType` from provided `Address` */
   private _chronikScriptType = (
-    script: Script
+    address: Address
   ): ScriptType => {
-    const address = script.toAddress();
     switch (true) {
       case address.isPayToPublicKeyHash():
         return 'p2pkh';
