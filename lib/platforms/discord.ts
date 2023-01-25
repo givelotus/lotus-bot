@@ -125,9 +125,26 @@ implements Platform {
     });
     this.client.on('messageCreate', async message =>{
       if(message.author.id == this.clientId){ return;}
-      const dmCommand: string = message.content.trim();
-      switch(dmCommand){
-
+      const dmCommand = message.content.trim().split(" ");
+      //console.info(message);
+      switch(dmCommand[0]){
+        case "balance":
+          this.emit('Balance',message.author.id, message);
+          break;
+        case "deposit":
+          this.emit('Deposit',message.author.id);
+          break;
+        case "withdraw":
+          if(dmCommand.length < 3){
+            await message.reply("You must use the following syntax for withdrawing:\r\n`withdraw <amount> <external_address>`");
+            break;
+          }
+          if(parseInt(dmCommand[1]) <= 0){
+            await message.reply("The value for withdrawal must be greater than 0.");
+            break;
+          }
+          this.emit('Withdraw',message.author.id,dmCommand[1],dmCommand[2]);
+          break;
         default:
           message.reply(`You can only use the following verbs in my DMs:
           
