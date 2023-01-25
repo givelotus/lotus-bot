@@ -14,6 +14,8 @@ import {
 import config from '../../config'
 import { Message } from "telegraf/typings/core/types/typegram";
 
+export type TelegramMessage = Context;
+
 export declare interface Telegram {
   on(event: 'Balance', callback: (
     platformId: string

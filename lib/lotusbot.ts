@@ -184,6 +184,7 @@ export default class LotusBot {
 
   private _handleBalanceCommand = async (
     platformId: string,
+    message?: Platforms.Message
   ) => {
     this._log(this.platform, `${platformId}: balance command received`);
     try {
@@ -194,6 +195,7 @@ export default class LotusBot {
       await this.bot.sendBalanceReply(
         platformId,
         Util.toLocaleXPI(balance),
+        message
       );
       this._log(
         this.platform,
@@ -206,6 +208,7 @@ export default class LotusBot {
   /** Gather user's address and send back to user as reply to their message */
   private _handleDepositCommand = async (
     platformId: string,
+    message?: Platforms.Message
   ) => {
     try {
       this._log(this.platform, `${platformId}: deposit command received`);
@@ -213,7 +216,7 @@ export default class LotusBot {
         ? await this._saveAccount({ platformId })
         : await this.prisma.getUserId(platformId);
       const address = this.wallets.getKey(userId)?.address?.toXAddress();
-      await this.bot.sendDepositReply(platformId, address);
+      await this.bot.sendDepositReply(platformId, address, message);
       this._log(this.platform, `${platformId}: deposit: address sent to user`);
     } catch (e: any) {
       throw new Error(`_platformHandleDeposit: ${e.message}`);
@@ -227,7 +230,8 @@ export default class LotusBot {
     fromUsername: string,
     toId: string,
     toUsername: string,
-    value: string
+    value: string,
+    message?: Platforms.Message
   ) => {
     try {
       const sats = Util.toSats(value);
@@ -272,7 +276,8 @@ export default class LotusBot {
         replyToMessageId,
         fromUsername,
         toUsername,
-        Util.toLocaleXPI(sats)
+        Util.toLocaleXPI(sats),
+        message
       );
       this._log(
         this.platform,
@@ -288,6 +293,7 @@ export default class LotusBot {
     platformId: string,
     wAmount: number,
     wAddress: string,
+    message?: Platforms.Message
   ) => {
     try {
       this._log(
@@ -342,7 +348,8 @@ export default class LotusBot {
       this._log(DB, `withdrawal saved: ${txid}`);
       await this.bot.sendWithdrawReply(
         platformId,
-        { txid, amount: Util.toLocaleXPI(wSats) }
+        { txid, amount: Util.toLocaleXPI(wSats) },
+        message
       );
       this._log(
         this.platform,
