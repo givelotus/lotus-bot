@@ -4,9 +4,15 @@
   "description": "Chat bot for social media to use for giving Lotus XPI to other people",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "telegram": "./node_modules/typescript/bin/tsc && CHECKPOINT_DISABLE=1 node index.js Telegram",
-    "twitter": "./node_modules/typescript/bin/tsc && CHECKPOINT_DISABLE=1 node index.js Twitter",
-    "discord": "./node_modules/typescript/bin/tsc && CHECKPOINT_DISABLE=1 node index.js Discord"
+    "telegram": "run-script-os",
+    "twitter": "run-script-os",
+    "discord": "run-script-os",
+    "telegram:darwin:linux": "./node_modules/typescript/bin/tsc && CHECKPOINT_DISABLE=1 node index.js Telegram",
+    "twitter:darwin:linux": "./node_modules/typescript/bin/tsc && CHECKPOINT_DISABLE=1 node index.js Twitter",
+    "discord:darwin:linux": "./node_modules/typescript/bin/tsc && CHECKPOINT_DISABLE=1 node index.js Discord",
+    "telegram:win32": "tac && node index.js Telegram",
+    "twitter:win32": "tsc && node index.js Twitter",
+    "discord:win32": "tsc && node index.js Discord"
   },
   "author": "maff1989",
   "dependencies": {
@@ -21,6 +27,7 @@
   "devDependencies": {
     "@types/node": "^18.11.17",
     "prisma": "^4.8.1",
+    "run-script-os": "^1.1.6",
     "typescript": "^4.9.4"
   }
 }

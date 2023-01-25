@@ -1,6 +1,6 @@
 import internal, { EventEmitter } from "node:stream";
 import { setTimeout } from "node:timers/promises";
-import { REST, Routes, Client, Collection, GatewayIntentBits, EmbedBuilder, ChatInputCommandInteraction, ColorResolvable } from 'discord.js';
+import { REST, Routes, Client, Collection, GatewayIntentBits, EmbedBuilder, ChatInputCommandInteraction, ColorResolvable, Partials, Options, ChannelFlags, ActivityType, PresenceManager, Activity } from 'discord.js';
 import { BOT } from '../../util/constants';
 import { format } from 'node:util';
 import fs from 'node:fs';
@@ -58,7 +58,7 @@ implements Platform {
         // Discord bot client and api setup
         this.clientId = config.discord.clientId;
         this.guildId = config.discord.guildId;
-        this.client = new Client({ intents: [GatewayIntentBits.Guilds] });
+        this.client = new Client({ intents: [GatewayIntentBits.Guilds,GatewayIntentBits.DirectMessages], partials: [Partials.Channel]});
       }
   /**
    * Instantiate the bot with API key. Also set up event handlers.
@@ -108,9 +108,38 @@ implements Platform {
 
     this.client.on('ready', () => {
         console.log(`Logged in as ${this.client.user.tag}!`);
+        const actOpt = ActivityType.Custom
+        this.client.user.setActivity("🪷 Give appreciation with Lotus 🪷", {type: ActivityType.Playing});
+        const activities = [
+          "🪷 Give appreciation with Lotus 🪷",
+          "🪷 givelotus.org 🪷",
+          "🪷 Use /balance to start 🪷"
+        ];
+        setInterval(() => {
+          // generate random number between 1 and list length.
+          const randomIndex = Math.floor(Math.random() * (activities.length - 1) + 1);
+          const newActivity = activities[randomIndex];
+          this.client.user.setActivity(newActivity, {type: ActivityType.Playing});
+        }, 10000);
+        
     });
     this.client.on('messageCreate', async message =>{
-      
+      if(message.author.id == this.clientId){ return;}
+      const dmCommand: string = message.content.trim();
+      switch(dmCommand){
+
+        default:
+          message.reply(`You can only use the following verbs in my DMs:
+          
+**balance** - Get your current balance in the bot.
+**deposit** - Get the deposit information needed to send XPI to your bot wallet.
+**Withdraw** - Withdraw XPI from your bot wallet to an external wallet address.
+
+To use the Withdraw command, please use the following syntax:
+\`withdraw <amount> <external_address>\`
+          `);
+          break;
+      }
     });
     this.client.on('interactionCreate', async interaction => {
         if (!interaction.isChatInputCommand()) return;
