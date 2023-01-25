@@ -1,6 +1,10 @@
 import { EventEmitter } from 'stream';
 import { Platform } from '.';
 
+export type TwitterMessage = {
+
+};
+
 export class Twitter
 extends EventEmitter
 implements Platform {
