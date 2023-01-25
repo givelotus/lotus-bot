@@ -40,6 +40,9 @@ export class Database {
       case 'Twitter':
         this.platformTable = 'userTwitter';
         break;
+      case 'Discord':
+        this.platformTable = 'userDiscord';
+        break;
     }
   };
 
@@ -284,7 +287,8 @@ export class Database {
         select: { user: {
           select: {
             telegram: true,
-            twitter: true
+            twitter: true,
+            discord: true
           }
         }}
       });
@@ -325,7 +329,8 @@ export class Database {
         select: { value: true, user: {
           select: {
             telegram: true,
-            twitter: true
+            twitter: true,
+            discord: true
           }
         }}
       });

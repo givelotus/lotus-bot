@@ -5,7 +5,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "telegram": "./node_modules/typescript/bin/tsc && CHECKPOINT_DISABLE=1 node index.js Telegram",
-    "twitter": "./node_modules/typescript/bin/tsc && CHECKPOINT_DISABLE=1 node index.js Twitter"
+    "twitter": "./node_modules/typescript/bin/tsc && CHECKPOINT_DISABLE=1 node index.js Twitter",
+    "discord": "./node_modules/typescript/bin/tsc && CHECKPOINT_DISABLE=1 node index.js Discord"
   },
   "author": "maff1989",
   "dependencies": {
@@ -13,6 +14,7 @@
     "@abcpros/bitcore-mnemonic": "^8.25.33",
     "@prisma/client": "^4.7.1",
     "chronik-client": "^0.8.1",
+    "discord.js": "^14.7.1",
     "dotenv": "^16.0.3",
     "telegraf": "^4.11.2"
   },
