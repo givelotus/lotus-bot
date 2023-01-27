@@ -1,15 +1,19 @@
-import internal, { EventEmitter } from "node:stream";
-import { setTimeout } from "node:timers/promises";
-import { REST, Routes, Client, Collection, GatewayIntentBits, EmbedBuilder, ChatInputCommandInteraction, ColorResolvable, Partials, Options, ChannelFlags, ActivityType, PresenceManager, Activity } from 'discord.js';
+import { EventEmitter } from "node:stream";
+import {
+  REST,
+  Routes,
+  Client,
+  GatewayIntentBits,
+  EmbedBuilder,
+  ChatInputCommandInteraction,
+  ColorResolvable,
+  Partials,
+  ActivityType,
+  Message
+} from 'discord.js';
 import { BOT } from '../../util/constants';
 import { format } from 'node:util';
-import fs from 'node:fs';
-import path from 'node:path';
 import { Platform } from '.';
-import {
-  parseGive,
-  parseWithdraw
-} from '../../util';
 import config from '../../config';
 
 //Branding
@@ -41,7 +45,6 @@ export declare interface Discord {
     ) => void): this;
   }
 
-
 export class Discord 
 extends EventEmitter
 implements Platform {
@@ -58,7 +61,10 @@ implements Platform {
         // Discord bot client and api setup
         this.clientId = config.discord.clientId;
         this.guildId = config.discord.guildId;
-        this.client = new Client({ intents: [GatewayIntentBits.Guilds,GatewayIntentBits.DirectMessages], partials: [Partials.Channel]});
+        this.client = new Client({
+          intents: [GatewayIntentBits.Guilds,GatewayIntentBits.DirectMessages],
+          partials: [Partials.Channel]
+        });
       }
   /**
    * Instantiate the bot with API key. Also set up event handlers.
@@ -73,7 +79,20 @@ implements Platform {
           {
             name: 'give',
             description: 'Give XPI to another user.',
-            options:[{type:6,name:"to",description:"User to give XPI to",required:true},{type:10,name:"amount",description:"Amount of XPI to give.",required:true}]
+            options:[
+              {
+                type:6,
+                name:"to",
+                description:"User to give XPI to",
+                required:true
+              },
+              {
+                type:10,
+                name:"amount",
+                description:"Amount of XPI to give.",
+                required:true
+              }
+            ]
           },
           {
             name: 'balance',
@@ -86,7 +105,20 @@ implements Platform {
           {
             name: 'withdraw',
             description: 'Withdraw XPI from your wallet in the bot.',
-            options:[{type:10,name:"amount",description:"Amount of XPI to withdraw.",required:true},{type:3,name:"address",description:"XPI Address for your external wallet.",required:true}]
+            options:[
+              {
+                type:10,
+                name:"amount",
+                description:"Amount of XPI to withdraw.",
+                required:true
+              },
+              {
+                type:3,
+                name:"address",
+                description:"XPI Address for your external wallet.",
+                required:true
+              }
+            ]
           },
           {
             name: 'ping',
@@ -108,8 +140,10 @@ implements Platform {
 
     this.client.on('ready', () => {
         console.log(`Logged in as ${this.client.user.tag}!`);
-        const actOpt = ActivityType.Custom
-        this.client.user.setActivity("🪷 Give appreciation with Lotus 🪷", {type: ActivityType.Playing});
+        this.client.user.setActivity(
+          "🪷 Give appreciation with Lotus 🪷",
+          {type: ActivityType.Playing}
+        );
         const activities = [
           "🪷 Give appreciation with Lotus 🪷",
           "🪷 givelotus.org 🪷",
@@ -123,88 +157,11 @@ implements Platform {
         }, 10000);
         
     });
-    this.client.on('messageCreate', async message =>{
-      if(message.author.id == this.clientId){ return;}
-      const dmCommand = message.content.trim().split(" ");
-      //console.info(message);
-      switch(dmCommand[0]){
-        case "balance":
-          this.emit('Balance',message.author.id, message);
-          break;
-        case "deposit":
-          this.emit('Deposit',message.author.id);
-          break;
-        case "withdraw":
-          if(dmCommand.length < 3){
-            await message.reply("You must use the following syntax for withdrawing:\r\n`withdraw <amount> <external_address>`");
-            break;
-          }
-          if(parseInt(dmCommand[1]) <= 0){
-            await message.reply("The value for withdrawal must be greater than 0.");
-            break;
-          }
-          this.emit('Withdraw',message.author.id,dmCommand[1],dmCommand[2]);
-          break;
-        default:
-          message.reply(`You can only use the following verbs in my DMs:
-          
-**balance** - Get your current balance in the bot.
-**deposit** - Get the deposit information needed to send XPI to your bot wallet.
-**Withdraw** - Withdraw XPI from your bot wallet to an external wallet address.
+    // Handle Direct Messages and Commands from Server(s)
+    this.client.on('messageCreate', this._handleDirectMessage);
+    this.client.on('interactionCreate', this._handleCommandMessage);
 
-To use the Withdraw command, please use the following syntax:
-\`withdraw <amount> <external_address>\`
-          `);
-          break;
-      }
-    });
-    this.client.on('interactionCreate', async interaction => {
-        if (!interaction.isChatInputCommand()) return;
-        const user = interaction.user.username+"#"+interaction.user.discriminator;
-        const platformId = interaction.user.id;
-        
-        //const userObj = await this.client.users.fetch(platformId);
-        const channelId = interaction.channelId;
-        console.log(`Command sent from ${user} on channel ${this.guildId}:${channelId} = ${interaction.commandName}`);
-        switch(interaction.commandName){
-            case "give":
-              //Process give shit.
-              const toId = interaction.options.getUser('to').id
-              const toUsername = interaction.options.getUser('to').username+"#"+interaction.options.getUser('to').discriminator;
-              const xpiAmount = interaction.options.getNumber('amount') ?? 0;
-              if(xpiAmount <= 0){
-                await interaction.reply({ content: format(BOT.MESSAGE.ERR_AMOUNT_INVALID, xpiAmount), ephemeral: true});
-                break;
-              }
-              if(this.clientId == interaction.options.getUser('to').id){
-                await interaction.reply({ content: format(BOT.MESSAGE.ERR_GIVE_TO_BOT), ephemeral: true});
-                break;
-              }
-              this.emit('Give',null,null,platformId,user,toId,toUsername,xpiAmount.toString(),interaction);
-              break;
-            case "balance":
-              this.emit('Balance', platformId, interaction);
-              break;
-            case "deposit":
-              this.emit('Deposit',platformId);
-              await interaction.reply({ content: `Please check your DMs for reply message.`, ephemeral: true});
-              break;
-            case "withdraw":
-              this.emit('Withdraw',platformId,interaction.options.getNumber("amount").toString(),interaction.options.getString("address"));
-              await interaction.reply({ content: `Please check your DMs for reply message.`, ephemeral: true});
-              break;
-            case "ping":
-              await interaction.reply({ content: `Pong! 🏓` });
-              break;
-            case "ilovelotus":
-              await interaction.reply({ content: `👁️ 💖 🪷!` });
-              break;
-            default:
-                //This should NEVER happen as we are registering commands directly to the server.
-                await interaction.reply({ content: 'The command you entered does not exist!', ephemeral: true });
-                break;
-        }
-    });
+    // Connect to Discord
     this.client.login(this.discordToken);
   };
   /** Deactivate the bot */
@@ -227,15 +184,15 @@ To use the Withdraw command, please use the following syntax:
   sendDepositReply = async (platformId: string, address: string) => {
     try{
       const depositReplyEmbed = new EmbedBuilder()
-            .setColor(primaryColor)
-            .setTitle(`View address on the Explorer`)
-            .setURL(`${config.wallet.explorerUrl}/address/${address}`)
-            .setDescription('Send Lotus here to fund your account')
-            .addFields(
-              { name: 'Lotus Address', value: address }
-            )
-            .setImage(`${config.wallet.explorerUrl}/qr/${address}`)
-            .setTimestamp();
+        .setColor(primaryColor)
+        .setTitle(`View address on the Explorer`)
+        .setURL(`${config.wallet.explorerUrl}/address/${address}`)
+        .setDescription('Send Lotus here to fund your account')
+        .addFields(
+          { name: 'Lotus Address', value: address }
+        )
+        .setImage(`${config.wallet.explorerUrl}/qr/${address}`)
+        .setTimestamp();
 
       const userObj = await this.client.users.fetch(platformId);
       await userObj.send({embeds: [depositReplyEmbed]});
@@ -291,7 +248,12 @@ To use the Withdraw command, please use the following syntax:
     interaction: ChatInputCommandInteraction
   ) => {
     try{
-      await interaction.reply(format(BOT.MESSAGE.GIVE,"<@"+interaction.user.id+">",amount,"<@"+interaction.options.getUser('to').id+">"));
+      await interaction.reply(
+        format(BOT.MESSAGE.GIVE,
+          "<@"+interaction.user.id+">",
+          amount,
+          "<@"+interaction.options.getUser('to').id+">"
+        ));
     }catch(err){
       console.log(err.message);
     }
@@ -338,6 +300,126 @@ To use the Withdraw command, please use the following syntax:
     } catch (err) {
         // And of course, make sure you catch and log any errors!
         throw new Error(`REGISTERCOMMANDS: ${err.message}`);
+    }
+  }
+  private _handleDirectMessage = async (message: Message) => {
+    const {
+      author,
+      content
+    } = message;
+
+    if(author.id == this.clientId) return;
+
+    const dmCommand = content.trim().split(" ");
+    switch(dmCommand[0]){
+      case "balance":
+        this.emit('Balance',author.id, message);
+        break;
+      case "deposit":
+        this.emit('Deposit',author.id);
+        break;
+      case "withdraw":
+        if(dmCommand.length < 3){
+          await message.reply("You must use the following syntax for withdrawing:\r\n`withdraw <amount> <external_address>`");
+          break;
+        }
+        if(parseInt(dmCommand[1]) <= 0){
+          await message.reply("The value for withdrawal must be greater than 0.");
+          break;
+        }
+        this.emit('Withdraw',author.id,dmCommand[1],dmCommand[2]);
+        break;
+      default:
+        message.reply(`You can only use the following verbs in my DMs:
+        
+**balance** - Get your current balance in the bot.
+**deposit** - Get the deposit information needed to send XPI to your bot wallet.
+**Withdraw** - Withdraw XPI from your bot wallet to an external wallet address.
+
+To use the Withdraw command, please use the following syntax:
+\`withdraw <amount> <external_address>\`
+        `);
+        break;
+    }
+  }
+  private _handleCommandMessage = async (interaction: ChatInputCommandInteraction) =>{
+    if (!interaction.isChatInputCommand()) return;
+    const {
+      user,
+      channelId,
+      options,
+      commandName
+    } = interaction;
+    const fromUser = user.username+"#"+user.discriminator;
+    const platformId = user.id;
+    console.log(`Command sent from ${fromUser} on channel ${this.guildId}:${channelId} = ${commandName}`);
+    const xpiAmount = options.getNumber('amount') ?? 0;
+
+    switch(commandName){
+        case "give":
+          //Process give shit.
+          const to = options.getUser('to');
+          const toId = to.id
+          const toUsername = to.username+"#"+to.discriminator;
+          if(xpiAmount <= 0){
+            await interaction.reply({
+              content: format(BOT.MESSAGE.ERR_AMOUNT_INVALID, xpiAmount),
+              ephemeral: true
+            });
+            break;
+          }
+          if(this.clientId == to.id){
+            await interaction.reply({
+              content: format(BOT.MESSAGE.ERR_GIVE_TO_BOT),
+              ephemeral: true
+            });
+            break;
+          }
+          this.emit('Give',
+            null,
+            null,
+            platformId,
+            fromUser,
+            toId,
+            toUsername,
+            xpiAmount.toString(),
+            interaction
+          );
+          break;
+        case "balance":
+          this.emit('Balance', platformId, interaction);
+          break;
+        case "deposit":
+          this.emit('Deposit',platformId);
+          await interaction.reply({
+            content: `Please check your DMs for reply message.`,
+            ephemeral: true
+          });
+          break;
+        case "withdraw":
+          this.emit('Withdraw',
+            platformId,
+            xpiAmount.toString(),
+            options.getString("address")
+          );
+          await interaction.reply({
+            content: `Please check your DMs for reply message.`,
+            ephemeral: true
+          });
+          break;
+        case "ping":
+          await interaction.reply({ content: `Pong! 🏓` });
+          break;
+        case "ilovelotus":
+          await interaction.reply({ content: `👁️ 💖 🪷!` });
+          break;
+        default:
+          //This should NEVER happen as we are registering commands directly to the server.
+          await interaction.reply({
+            content: 'The command you entered does not exist!',
+            ephemeral: true
+          });
+          break;
     }
   }
 }
