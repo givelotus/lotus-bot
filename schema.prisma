@@ -56,6 +56,7 @@ model User {
   accountId String
   telegram UserTelegram?
   twitter UserTwitter?
+  discord UserDiscord?
   account Account @relation(fields: [accountId], references: [id])
   key WalletKey?
   deposits Deposit[]
@@ -71,6 +72,12 @@ model UserTelegram {
 }
 
 model UserTwitter {
+  id String @id
+  userId String @unique
+  user User @relation(fields: [userId], references: [id])
+}
+
+model UserDiscord {
   id String @id
   userId String @unique
   user User @relation(fields: [userId], references: [id])
