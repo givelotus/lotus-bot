@@ -10,7 +10,7 @@
     "telegram:darwin:linux": "./node_modules/typescript/bin/tsc && CHECKPOINT_DISABLE=1 node index.js Telegram",
     "twitter:darwin:linux": "./node_modules/typescript/bin/tsc && CHECKPOINT_DISABLE=1 node index.js Twitter",
     "discord:darwin:linux": "./node_modules/typescript/bin/tsc && CHECKPOINT_DISABLE=1 node index.js Discord",
-    "telegram:win32": "tac && node index.js Telegram",
+    "telegram:win32": "tsc && node index.js Telegram",
     "twitter:win32": "tsc && node index.js Twitter",
     "discord:win32": "tsc && node index.js Discord"
   },
