@@ -151,12 +151,12 @@ export default class LotusBot {
     message: string
   ) => console.log(`${module.toUpperCase()}: ${message}`);
 
-  private _shutdown = () => {
+  private _shutdown = async () => {
     console.log();
     this._log(`process`, `shutting down`);
-    this.prisma?.disconnect();
+    await this.bot?.stop();
     this.wallets?.closeWsEndpoint();
-    this.bot?.stop();
+    await this.prisma?.disconnect();
   };
 
   private _handleUtxoAddedToMempool = async (
