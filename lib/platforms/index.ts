@@ -1,11 +1,13 @@
 import { Telegram, TelegramMessage } from './telegram';
 import { Twitter, TwitterMessage } from './twitter';
+import { Discord, DiscordMessage } from './discord';
 
-export { Telegram, Twitter };
-export type PlatformDatabaseTable = 'userTelegram' | 'userTwitter';
+export { Telegram, Twitter, Discord };
+export type PlatformDatabaseTable = 'userTelegram' | 'userTwitter' | 'userDiscord';
 export type Message =
   | TelegramMessage
-  | TwitterMessage;
+  | TwitterMessage
+  | DiscordMessage;
 
 export interface Platform {
   /**

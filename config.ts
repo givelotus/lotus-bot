@@ -4,6 +4,11 @@ type ParsedConfig = {
   apiKeys: {
     Telegram: string,
     Twitter: string,
+    Discord: string
+  },
+  discord: {
+    clientId: string,
+    guildId: string
   },
   wallet: {
     chronikUrl: string,
@@ -29,6 +34,11 @@ class Config {
       apiKeys: {
         Telegram: process.env.APIKEY_TELEGRAM,
         Twitter: process.env.APIKEY_TWITTER,
+        Discord: process.env.APIKEY_DISCORD
+      },
+      discord: {
+        clientId:process.env.CLIENTID_DISCORD,
+        guildId:process.env.GUILDID_DISCORD
       },
       wallet: {
         chronikUrl: process.env.WALLET_CHRONIK_URL,
