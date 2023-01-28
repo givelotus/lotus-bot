@@ -65,7 +65,7 @@ extends EventEmitter
 implements Platform {
   private lastReplyTime: number;
   private clientId: string;
-  private guildId: string;
+  private guildIds: string[];
   private client: Client;
   private commands: Command[] = [];
   private activities: string[] = [];
@@ -76,7 +76,7 @@ implements Platform {
     this.lastReplyTime = Date.now();
     // Discord bot client and api setup
     this.clientId = config.discord.clientId;
-    this.guildId = config.discord.guildId;
+    this.guildIds = config.discord.guildId.split(",");
     this.client = new Client({
       intents: [GatewayIntentBits.Guilds, GatewayIntentBits.DirectMessages],
       partials: [Partials.Channel]
@@ -160,7 +160,9 @@ implements Platform {
   };
   /** Activate the bot */
   launch = async () => {
-    await this._registerCommands();
+    for (const guildId of this.guildIds) {
+      await this._registerCommands(guildId);
+    }
     await this.client.login();
   };
   /** Deactivate the bot */
@@ -294,10 +296,10 @@ implements Platform {
       throw new Error(`sendWithdrawReply: ${e.message}`);
     }
   };
-  private _registerCommands = async () => {
+  private _registerCommands = async (guildId: string) => {
     try {
       await this.client.rest.put(
-        Routes.applicationGuildCommands(this.clientId, this.guildId),
+        Routes.applicationGuildCommands(this.clientId, guildId),
         { body: this.commands },
       );
     } catch (e: any) {
@@ -370,10 +372,10 @@ implements Platform {
     } = interaction;
     const fromUser = `${user.username}#${user.discriminator}`;
     const platformId = user.id;
-    console.log(
-      `Command sent from ${fromUser} on channel ` +
-      `${this.guildId}:${channelId} = ${commandName}`
-    );
+    // console.log(
+    //   `Command sent from ${fromUser} on channel ` +
+    //   `${this.guildId}:${channelId} = ${commandName}`
+    // );
     const xpiAmount = options.getNumber('amount') ?? 0;
 
     try {
