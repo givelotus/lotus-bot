@@ -149,7 +149,6 @@ implements Platform {
       this.client.on('messageCreate', this._handleDirectMessage);
       this.client.on('interactionCreate', this._handleCommandMessage);
       this.client.token = apiKey;
-      this.client.token = apiKey;
       this.client.rest = new REST({ version: '10' }).setToken(apiKey);
     } catch (e: any) {
       throw new Error(`setup: ${e.message}`);
