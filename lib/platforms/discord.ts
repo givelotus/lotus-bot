@@ -67,6 +67,7 @@ implements Platform {
   private client: Client;
   private commands: Command[] = [];
   private activities: string[] = [];
+  private activityInterval: NodeJS.Timer;
 
   constructor() {   
     super();
@@ -148,6 +149,7 @@ implements Platform {
       this.client.on('ready', this._handleReady);
       this.client.on('messageCreate', this._handleDirectMessage);
       this.client.on('interactionCreate', this._handleCommandMessage);
+      this.client.token = apiKey;
       this.client.rest = new REST({ version: '10' }).setToken(apiKey);
     } catch (e: any) {
       throw new Error(`setup: ${e.message}`);
@@ -161,6 +163,7 @@ implements Platform {
   };
   /** Deactivate the bot */
   stop = async () => {
+    clearInterval(this.activityInterval);
     this.client.destroy();
   };
   getBotId = () => this.clientId;
@@ -303,7 +306,7 @@ implements Platform {
   private _handleReady = () => {
     console.log(`Logged in as ${this.client.user.tag}!`);
     this._setRandomActivity();
-    setInterval(this._setRandomActivity, 10000);
+    this.activityInterval = setInterval(this._setRandomActivity, 10000);
   };
   private _handleDirectMessage = async (message: Message) => {
     const {
