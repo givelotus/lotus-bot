@@ -65,6 +65,7 @@ implements Platform {
   private clientId: string;
   private guildId: string;
   private client: Client;
+  private rest: REST;
   private commands: Command[] = [];
   private activities: string[] = [];
 
@@ -149,7 +150,8 @@ implements Platform {
       this.client.on('messageCreate', this._handleDirectMessage);
       this.client.on('interactionCreate', this._handleCommandMessage);
       this.client.token = apiKey;
-      this.client.rest = new REST({ version: '10' }).setToken(apiKey);
+      this.rest = new REST({ version: '10' }).setToken(apiKey);
+      
     } catch (e: any) {
       throw new Error(`setup: ${e.message}`);
     }
@@ -293,10 +295,11 @@ implements Platform {
   };
   private _registerCommands = async () => {
     try {
-      await this.client.rest.put(
+      await this.rest.put(
         Routes.applicationGuildCommands(this.clientId, this.guildId),
         { body: this.commands },
       );
+      console.log("DISCORD: Registered Guild Commands");
     } catch (e: any) {
         // And of course, make sure you catch and log any errors!
         throw new Error(`_registerCommands: ${e.message}`);
