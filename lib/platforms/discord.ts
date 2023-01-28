@@ -148,6 +148,7 @@ implements Platform {
       this.client.on('ready', this._handleReady);
       this.client.on('messageCreate', this._handleDirectMessage);
       this.client.on('interactionCreate', this._handleCommandMessage);
+      this.client.token = apiKey;
       this.client.rest = new REST({ version: '10' }).setToken(apiKey);
     } catch (e: any) {
       throw new Error(`setup: ${e.message}`);
@@ -158,6 +159,7 @@ implements Platform {
   launch = async () => {
     await this._registerCommands();
     await this.client.login();
+    await this.client.user.fetch();
   };
   /** Deactivate the bot */
   stop = async () => {
