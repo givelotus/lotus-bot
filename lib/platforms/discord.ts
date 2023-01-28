@@ -303,7 +303,7 @@ implements Platform {
         // And of course, make sure you catch and log any errors!
         throw new Error(`_registerCommands: ${e.message}`);
     }
-  };
+  }
   private _handleReady = () => {
     console.log(`Logged in as ${this.client.user.tag}!`);
     this._setRandomActivity();
