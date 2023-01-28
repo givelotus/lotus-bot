@@ -164,6 +164,7 @@ implements Platform {
       await this._registerCommands(guildId);
     }
     await this.client.login();
+    await this.client.user.fetch();
   };
   /** Deactivate the bot */
   stop = async () => {
