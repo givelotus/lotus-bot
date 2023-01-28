@@ -9,7 +9,9 @@ import {
   ColorResolvable,
   Partials,
   ActivityType,
-  Message
+  Message,
+  DMChannel,
+  ChannelType
 } from 'discord.js';
 import { BOT } from '../../util/constants';
 import { format } from 'node:util';
@@ -314,7 +316,7 @@ implements Platform {
       content
     } = message;
 
-    if (author.id == this.clientId) {
+    if (author.id == this.clientId || message.channel.type != ChannelType.DM) {
       return;
     }
 
