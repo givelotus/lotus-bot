@@ -158,11 +158,14 @@ implements Platform {
   /** Activate the bot */
   launch = async () => {
     await this._registerCommands();
-    this.client.login();
+    await this.client.login();
+    await this.client.user.fetch();
+    console.log(`DISCORD: Launch func end`);
   };
   /** Deactivate the bot */
   stop = async () => {
     this.client.destroy();
+    console.log(`DISCORD: Stopped discord.js`);
   };
   getBotId = () => this.clientId;
   sendBalanceReply = async (
