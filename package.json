@@ -22,7 +22,8 @@
     "chronik-client": "^0.8.1",
     "discord.js": "^14.7.1",
     "dotenv": "^16.0.3",
-    "telegraf": "^4.11.2"
+    "telegraf": "^4.11.2",
+    "twitter-api-v2": "^1.14.1"
   },
   "devDependencies": {
     "@types/node": "^18.11.17",
