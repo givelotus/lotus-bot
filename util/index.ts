@@ -16,26 +16,5 @@ export const toLocaleXPI = (
   maximumFractionDigits: 6
 });
 
-export const parseGive = (
-  text: string
-) => {
-  const parts = split(text);
-  const index = parts.findIndex(part => part.toLowerCase() == '/give');
-  return index >= 0
-    ? parts.slice(index + 1, index + 2).pop()
-    : null;
-};
-
-export const parseWithdraw = (
-  text: string
-) => {
-  const parts = split(text);
-  const index = parts.findIndex(part => part.toLowerCase() == '/withdraw');
-  return index >= 0
-    ? parts.slice(index + 1, index + 3)
-    : null;
-};
-
 export const newUUID = () => randomUUID();
-
-const split = (text: string) => text.split(/\s+|\r?\n/);
+export const split = (text: string) => text.split(/\s+|\r?\n/);

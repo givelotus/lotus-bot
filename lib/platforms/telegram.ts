@@ -7,10 +7,7 @@ import {
 } from "telegraf";
 import { Platform } from '.';
 import { BOT } from '../../util/constants';
-import {
-  parseGive,
-  parseWithdraw
-} from '../../util';
+import { split } from '../../util';
 import config from '../../config'
 import { Message } from "telegraf/typings/core/types/typegram";
 
@@ -40,6 +37,24 @@ export declare interface Telegram {
 }
 
 const REPLIES_PER_SECOND = 20;
+const parseGive = (
+  text: string
+) => {
+  const parts = split(text);
+  const index = parts.findIndex(part => part.toLowerCase() == '/give');
+  return index >= 0
+    ? parts.slice(index + 1, index + 2).pop()
+    : null;
+};
+const parseWithdraw = (
+  text: string
+) => {
+  const parts = split(text);
+  const index = parts.findIndex(part => part.toLowerCase() == '/withdraw');
+  return index >= 0
+    ? parts.slice(index + 1, index + 3)
+    : null;
+};
 
 export class Telegram 
 extends EventEmitter
