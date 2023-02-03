@@ -40,7 +40,7 @@ export default class LotusBot {
     } catch (e: any) {
       this._log(MAIN, `init: ${e.message}`);
       this._log(MAIN, 'shutting down');
-      this._shutdown();
+      await this._shutdown();
     }
     this.wallets.on('AddedToMempool', this._handleUtxoAddedToMempool);
     this.wallets.on('Confirmed', this._handleUtxoConfirmed);
@@ -112,8 +112,8 @@ export default class LotusBot {
       const deposits = await this.prisma.getPlatformDeposits({
         unconfirmed: true
       });
-      for (const d of deposits) {
-        const outpoint = WalletManager.toOutpoint(d);
+      for (const deposit of deposits) {
+        const outpoint = WalletManager.toOutpoint(deposit);
         const [ result ] = await this.wallets.checkUtxosConfirmed([outpoint]);
         if (result.isConfirmed) {
           await this._confirmDeposit(result.txid);
@@ -135,6 +135,7 @@ export default class LotusBot {
     await this.bot?.stop();
     this.wallets?.closeWsEndpoint();
     await this.prisma?.disconnect();
+    process.exit(1);
   };
 
   private _handleUtxoAddedToMempool = async (
@@ -306,7 +307,8 @@ export default class LotusBot {
         );
         return await this.bot.sendWithdrawReply(
           platformId,
-          { error: `address invalid` }
+          { error: `address invalid` },
+          message
         );
       }
       if (isNaN(wAmount)) {
@@ -316,7 +318,8 @@ export default class LotusBot {
         );
         return await this.bot.sendWithdrawReply(
           platformId,
-          { error: `amount invalid` }
+          { error: `amount invalid` },
+          message
         );
       }
       const sats = Util.toSats(wAmount);
@@ -331,7 +334,8 @@ export default class LotusBot {
         );
         return await this.bot.sendWithdrawReply(
           platformId,
-          { error: 'insufficient balance' }
+          { error: 'insufficient balance' },
+          message
         );
       }
       const txid = await this.wallets.processTx({
