@@ -253,6 +253,7 @@ implements Platform {
     replyToMessageId: number,
     fromUsername: string,
     toUsername: string,
+    txid: string,
     amount: string,
     interaction: ChatInputCommandInteraction
   ) => {

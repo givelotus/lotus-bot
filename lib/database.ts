@@ -10,7 +10,7 @@ type Deposit = AccountUtxo & {
 };
 
 type Give = {
-  id: string,
+  txid: string,
   platform: string,
   timestamp: Date,
   fromId: string,
@@ -45,21 +45,38 @@ export class Database {
         break;
     }
   };
-
   connect = async () => await this.prisma.$connect();
   disconnect = async () => await this.prisma.$disconnect();
-
-  botUserExists = async () => {
+  /**
+   * Check if txid is a Give  
+   * Used when processing `AddedToMempool` to not save a Give as a Deposit
+   */
+  isGiveTx = async (
+    txid: string
+  ) => {
     try {
-      const result = await this.prisma.user.findFirst({
-        where: { id: BOT.UUID }
+      const result = await this.prisma.give.findFirst({
+        where: { txid },
+        select: { txid: true }
       });
-      return result?.id ? true : false;
+      return result?.txid? true : false;
     } catch (e: any) {
-
+      throw new Error(`isGiveTx: ${e.message}`);
     }
   };
-
+  isWithdrawTx = async (
+    txid: string
+  ) => {
+    try {
+      const result = await this.prisma.withdrawal.findFirst({
+        where: { txid },
+        select: { txid: true }
+      });
+      return result?.txid? true : false;
+    } catch (e: any) {
+      throw new Error(`isWithdrawTx: ${e.message}`);
+    }
+  }
   /** Check to make sure deposit exists. Used when confirming deposits. */
   isValidDeposit = async (
     txid: string
@@ -86,19 +103,6 @@ export class Database {
       return result?.userId ? true : false;
     } catch (e: any) {
       throw new Error(`isValidUser: ${e.message}`);
-    }
-  };
-  getBotWalletKey = async () => {
-    try {
-      const result = await this.prisma.walletKey.findFirst({
-        where: { userId: BOT.UUID }
-      });
-      return {
-        userId: result.userId,
-        hdPrivKey: result.hdPrivKey
-      };
-    } catch (e: any) {
-      throw new Error(`getBotWalletKey: ${e.message}`);
     }
   };
   /** Get WalletKeys for all platform users */
@@ -330,7 +334,8 @@ export class Database {
           select: {
             telegram: true,
             twitter: true,
-            discord: true
+            discord: true,
+            id: true
           }
         }}
       });

@@ -33,7 +33,7 @@ model Withdrawal {
 }
 
 model Give {
-  id String @id
+  txid String @unique
   platform String
   timestamp DateTime
   fromId String
