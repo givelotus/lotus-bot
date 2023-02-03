@@ -359,16 +359,16 @@ export class WalletManager extends EventEmitter {
             };
             switch (msg.type) {
               case 'AddedToMempool':
+                if (this._isExistingUtxo(userId, parsedUtxo)) {
+                  continue;
+                }
+                this.keys[userId].utxos.push(parsedUtxo);
                 this.emit('AddedToMempool', {
                   ...parsedUtxo,
                   userId
                 });
                 break;
               case 'Confirmed':
-                if (this._isExistingUtxo(userId, parsedUtxo)) {
-                  continue;
-                }
-                this.keys[userId].utxos.push(parsedUtxo);
                 this.emit('Confirmed', msg.txid);
                 break;
             }
