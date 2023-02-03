@@ -48,6 +48,7 @@ export interface Platform {
     replyToMessageId: number,
     fromUsername: string,
     toUsername: string,
+    txid: string,
     amount: string,
     message?: Message
   ) => Promise<void>;
