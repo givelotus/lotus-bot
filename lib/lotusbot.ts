@@ -307,7 +307,8 @@ export default class LotusBot {
         );
         return await this.bot.sendWithdrawReply(
           platformId,
-          { error: `address invalid` }
+          { error: `address invalid` },
+          message
         );
       }
       if (isNaN(wAmount)) {
@@ -317,7 +318,8 @@ export default class LotusBot {
         );
         return await this.bot.sendWithdrawReply(
           platformId,
-          { error: `amount invalid` }
+          { error: `amount invalid` },
+          message
         );
       }
       const sats = Util.toSats(wAmount);
@@ -332,7 +334,8 @@ export default class LotusBot {
         );
         return await this.bot.sendWithdrawReply(
           platformId,
-          { error: 'insufficient balance' }
+          { error: 'insufficient balance' },
+          message
         );
       }
       const txid = await this.wallets.processTx({
