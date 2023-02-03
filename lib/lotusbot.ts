@@ -112,8 +112,8 @@ export default class LotusBot {
       const deposits = await this.prisma.getPlatformDeposits({
         unconfirmed: true
       });
-      for (const d of deposits) {
-        const outpoint = WalletManager.toOutpoint(d);
+      for (const deposit of deposits) {
+        const outpoint = WalletManager.toOutpoint(deposit);
         const [ result ] = await this.wallets.checkUtxosConfirmed([outpoint]);
         if (result.isConfirmed) {
           await this._confirmDeposit(result.txid);
