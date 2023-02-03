@@ -145,13 +145,6 @@ export default class LotusBot {
     const utxoString = JSON.stringify(utxo);
     try {
       this._log(WALLET, `deposit received: ${utxoString}`);
-      if (
-        await this.prisma.isGiveTx(utxo.txid) ||
-        await this.prisma.isWithdrawTx(utxo.txid)
-      ) {
-        this._log(DB, `deposit is a Give/Withdraw tx: skipping: ${utxo.txid}`);
-        return;
-      }
       await this._saveDeposit(utxo);
     } catch (e: any) {
       throw new Error(`_handleUtxoAddedToMempool: ${e.message}`);
@@ -163,13 +156,6 @@ export default class LotusBot {
   ) => {
     try {
       this._log(WALLET, `deposit confirmed: ${txid}`);
-      if (!(await this.prisma.isValidDeposit(txid))) {
-        this._log(
-          DB,
-          `deposit invalid (likely Give/Withdraw tx): skipping: ${txid}`
-        );
-        return;
-      }
       await this._confirmDeposit(txid);
     } catch (e: any) {
       throw new Error(`_handleUtxoConfirmed: ${e.message}`);
@@ -426,6 +412,13 @@ export default class LotusBot {
     utxo: AccountUtxo
   ) => {
     try {
+      if (
+        await this.prisma.isGiveTx(utxo.txid) ||
+        await this.prisma.isWithdrawTx(utxo.txid)
+      ) {
+        this._log(DB, `deposit is a Give/Withdraw tx: skipping: ${utxo.txid}`);
+        return;
+      }
       const timestamp = new Date();
       const data = { ...utxo, timestamp };
       const deposit = await this.prisma.saveDeposit(data);
@@ -449,6 +442,13 @@ export default class LotusBot {
     txid: string
   ) => {
     try {
+      if (!(await this.prisma.isValidDeposit(txid))) {
+        this._log(
+          DB,
+          `deposit invalid (likely Give/Withdraw tx): skipping: ${txid}`
+        );
+        return;
+      }
       const { user, value } = await this.prisma.confirmDeposit(txid);
       const platformId = user[this.platform.toLowerCase()].id;
       this._log(DB, `deposit confirmed: ${txid}`);
