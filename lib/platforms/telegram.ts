@@ -75,7 +75,8 @@ implements Platform {
     replyToMessageId: number,
     fromUsername: string,
     toUsername: string,
-    amount: string
+    txid: string,
+    amount: string,
   ) => {
     try {
       await setTimeout(this._calcReplyDelay());
@@ -83,10 +84,12 @@ implements Platform {
         BOT.MESSAGE.GIVE,
         fromUsername,
         amount,
-        toUsername
+        toUsername,
+        `${config.wallet.explorerUrl}/tx/${txid}`
       );
       await this.bot.telegram.sendMessage(chatId, msg, {
-        reply_to_message_id: replyToMessageId
+        reply_to_message_id: replyToMessageId,
+        parse_mode: 'Markdown'
       });
       this.lastReplyTime = Date.now();
     } catch (e: any) {

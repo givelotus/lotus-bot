@@ -30,7 +30,8 @@ implements Platform {
     replyToMessageId: number,
     fromUsername: string,
     toUsername: string,
-    amount: string
+    txid: string,
+    amount: string,
   ) => Promise<void>;
   sendWithdrawReply: (
     platformId: string,
