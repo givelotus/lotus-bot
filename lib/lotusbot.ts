@@ -40,7 +40,7 @@ export default class LotusBot {
     } catch (e: any) {
       this._log(MAIN, `init: ${e.message}`);
       this._log(MAIN, 'shutting down');
-      this._shutdown();
+      await this._shutdown();
     }
     this.wallets.on('AddedToMempool', this._handleUtxoAddedToMempool);
     this.wallets.on('Confirmed', this._handleUtxoConfirmed);
@@ -135,6 +135,7 @@ export default class LotusBot {
     await this.bot?.stop();
     this.wallets?.closeWsEndpoint();
     await this.prisma?.disconnect();
+    process.exit(1);
   };
 
   private _handleUtxoAddedToMempool = async (
