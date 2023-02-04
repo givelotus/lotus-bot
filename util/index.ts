@@ -3,7 +3,8 @@ import { randomUUID } from 'node:crypto';
 
 export const toSats = (
   xpi: number | string
-) => Number(xpi) * Constants.XPI_DIVISOR;
+) => Math.round(Number(xpi) * Constants.XPI_DIVISOR);
+
 
 export const toXPI = (
   sats: number | string
