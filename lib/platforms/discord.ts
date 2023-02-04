@@ -206,7 +206,8 @@ implements Platform {
   sendDepositReceived = async (
     platformId: string,
     txid: string,
-    amount: string
+    amount: string,
+    balance: string,
   ) => {
     try {
       const embedMessage = new EmbedBuilder()

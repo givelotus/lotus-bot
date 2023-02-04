@@ -21,7 +21,7 @@ export const BOT = {
       `[View address on the Explorer](%s)`,
     DEPOSIT_RECV:
       `I received your deposit of %s XPI. ` +
-      `I will let you know when it confirms.\r\n\r\n` +
+      `Your balance is now %s XPI.\r\n\r\n` +
       `[View tx on the Explorer](%s)`,
     DEPOSIT_CONF: 
       `Your deposit of %s XPI has been confirmed! ` +

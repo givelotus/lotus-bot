@@ -77,20 +77,6 @@ export class Database {
       throw new Error(`isWithdrawTx: ${e.message}`);
     }
   }
-  /** Check to make sure deposit exists. Used when confirming deposits. */
-  isValidDeposit = async (
-    txid: string
-  ): Promise<boolean> => {
-    try {
-      const result = await this.prisma.deposit.findFirst({
-        where: { txid },
-        select: { txid: true }
-      });
-      return result?.txid ? true : false;
-    } catch (e: any) {
-      throw new Error(`isValidDeposit: ${e.message}`);
-    }
-  };
 
   /** Check db to ensure `userId` exists */
   isValidUser = async (
@@ -126,17 +112,11 @@ export class Database {
     }
   };
   /** Get all deposits or all unconfirmed deposits of platform users */
-  getPlatformDeposits = async ({
-    unconfirmed = false
-  }: {
-    unconfirmed?: boolean
-  }) => {
+  getPlatformDeposits = async () => {
     try {
       const result = await this.prisma[this.platformTable].findMany({
         select: { user: {
-          select: { deposits: {
-            where: unconfirmed ? { confirmed: false } : undefined
-          }}
+          select: { deposits: true }
         }}
       });
       const deposits: Deposit[] = [];
