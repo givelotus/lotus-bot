@@ -149,13 +149,15 @@ implements Platform {
   sendDepositReceived = async (
     platformId: string,
     txid: string,
-    amount: string
+    amount: string,
+    balance: string,
   ) => {
     try {
       await setTimeout(this._calcReplyDelay());
       const msg = format(
         BOT.MESSAGE.DEPOSIT_RECV,
         amount,
+        balance,
         `${config.wallet.explorerUrl}/tx/${txid}`
       );
       await this.bot.telegram.sendMessage(platformId, msg,

@@ -18,9 +18,8 @@ model Deposit {
   value String
   userId String
   timestamp DateTime
-  confirmed Boolean @default(false)
   user User @relation(fields: [userId], references: [id])
-  @@index([txid, userId, confirmed])
+  @@index([txid, userId])
 }
 
 model Withdrawal {

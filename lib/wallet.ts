@@ -39,7 +39,6 @@ export type AccountUtxo = ParsedUtxo & {
 
 export declare interface WalletManager {
   on(event: 'AddedToMempool', callback: (utxo: ParsedUtxo) => void): this;
-  on(event: 'Confirmed', callback: (txid: string) => void): this;
 };
 
 export class WalletManager extends EventEmitter {
@@ -49,11 +48,6 @@ export class WalletManager extends EventEmitter {
   // Wallet properties
   private keys: { [userId: string]: WalletKey } = {};
   private utxos: ParsedUtxo[] = [];
-  /**
-   * Holds latest tx that has triggered Chronik WS
-   * Avoids processing the same txid twice (e.g. when a Give occurs)
-   */
-  private lastChronikTx: string;
   /** Provides all off- and on-chain wallet functionality */
   constructor() {
     super();
@@ -333,46 +327,34 @@ export class WalletManager extends EventEmitter {
     msg: SubscribeMsg
   ) => {
     try {
-      if (
-        msg.type == 'AddedToMempool' ||
-        msg.type == 'Confirmed'
-      ) {
-        if (this.lastChronikTx == msg.txid) {
-          return;
-        }
-        this.lastChronikTx = msg.txid;
-        const { outputs } = await this.chronik.tx(msg.txid);
-        const outScripts = outputs.map(output => output.outputScript);
-        // process each tx output
-        for (let i = 0; i < outScripts.length; i++) {
-          const scriptHex = outScripts[i];
-          // find userId/key matching output scriptHex
-          for (const [ userId, key ] of Object.entries(this.keys)) {
-            const userScriptHex = key.script.toHex();
-            if (userScriptHex != scriptHex) {
-              continue;
-            }
-            const parsedUtxo = {
-              txid: msg.txid,
-              outIdx: i,
-              value: outputs[i].value,
-            };
-            switch (msg.type) {
-              case 'AddedToMempool':
-                if (this._isExistingUtxo(userId, parsedUtxo)) {
-                  continue;
-                }
-                this.keys[userId].utxos.push(parsedUtxo);
-                this.emit('AddedToMempool', {
-                  ...parsedUtxo,
-                  userId
-                });
-                break;
-              case 'Confirmed':
-                this.emit('Confirmed', msg.txid);
-                break;
-            }
+      if (msg.type != 'AddedToMempool') {
+        return;
+      }
+      const { outputs } = await this.chronik.tx(msg.txid);
+      const outScripts = outputs.map(output => output.outputScript);
+      // process each tx output
+      for (let i = 0; i < outScripts.length; i++) {
+        const scriptHex = outScripts[i];
+        // find userId/key matching output scriptHex
+        for (const [ userId, key ] of Object.entries(this.keys)) {
+          const userScriptHex = key.script.toHex();
+          if (userScriptHex != scriptHex) {
+            continue;
           }
+          const parsedUtxo = {
+            txid: msg.txid,
+            outIdx: i,
+            value: outputs[i].value,
+          };
+          /**
+           * Give transactions generate duplicate Chronik WS messages.
+           * This conditional ensures we do not save duplicate UTXOs
+           */
+          if (this._isExistingUtxo(userId, parsedUtxo)) {
+            break;
+          }
+          this.keys[userId].utxos.push(parsedUtxo);
+          return this.emit('AddedToMempool', { ...parsedUtxo, userId });
         }
       }
     } catch (e: any) {

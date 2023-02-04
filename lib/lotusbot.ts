@@ -37,14 +37,12 @@ export default class LotusBot {
       await this._initWalletManager();
       await this._initBot();
       await this._initReconcileDeposits();
-      await this._initConfirmDeposits();
     } catch (e: any) {
       this._log(MAIN, `init: ${e.message}`);
       this._log(MAIN, 'shutting down');
       await this._shutdown();
     }
     this.wallets.on('AddedToMempool', this._handleUtxoAddedToMempool);
-    this.wallets.on('Confirmed', this._handleUtxoConfirmed);
     this.bot.on('Balance', this._handleBalanceCommand);
     this.bot.on('Deposit', this._handleDepositCommand);
     this.bot.on('Give', this._handleGiveCommand);
@@ -93,7 +91,7 @@ export default class LotusBot {
     this._log(MAIN, `reconciling deposits with UTXO set`);
     try {
       const utxos = this.wallets.getUtxos();
-      const deposits = await this.prisma.getPlatformDeposits({});
+      const deposits = await this.prisma.getPlatformDeposits();
       const newDeposits = utxos.filter(u => {
         const idx = deposits.findIndex(d => u.txid == d.txid);
         return idx < 0;
@@ -103,25 +101,6 @@ export default class LotusBot {
       }
     } catch (e: any) {
       throw new Error(`_initReconcileDeposits: ${e.message}`);
-    }
-  };
-
-  /** Make sure we credit deposits that confirmed while offline */
-  private _initConfirmDeposits = async () => {
-    this._log(MAIN, `confirming applicable deposits`);
-    try {
-      const deposits = await this.prisma.getPlatformDeposits({
-        unconfirmed: true
-      });
-      for (const deposit of deposits) {
-        const outpoint = WalletManager.toOutpoint(deposit);
-        const [ result ] = await this.wallets.checkUtxosConfirmed([outpoint]);
-        if (result.isConfirmed) {
-          await this._confirmDeposit(result.txid);
-        }
-      }
-    } catch (e: any) {
-      throw new Error(`_initConfirmDeposits: ${e.message}`);
     }
   };
 
@@ -148,17 +127,6 @@ export default class LotusBot {
       await this._saveDeposit(utxo);
     } catch (e: any) {
       throw new Error(`_handleUtxoAddedToMempool: ${e.message}`);
-    }
-  };
-
-  private _handleUtxoConfirmed = async (
-    txid: string
-  ) => {
-    try {
-      this._log(WALLET, `deposit confirmed: ${txid}`);
-      await this._confirmDeposit(txid);
-    } catch (e: any) {
-      throw new Error(`_handleUtxoConfirmed: ${e.message}`);
     }
   };
 
@@ -423,11 +391,13 @@ export default class LotusBot {
       const data = { ...utxo, timestamp };
       const deposit = await this.prisma.saveDeposit(data);
       const platformId = deposit.user[this.platform.toLowerCase()].id;
+      const balance = await this.wallets.getUserBalance(utxo.userId);
       this._log(DB, `deposit saved: ${utxo.txid}`);
       await this.bot.sendDepositReceived(
         platformId,
         utxo.txid,
-        Util.toLocaleXPI(utxo.value)
+        Util.toLocaleXPI(utxo.value),
+        Util.toLocaleXPI(balance)
       );
       this._log(
         this.platform,
@@ -435,36 +405,6 @@ export default class LotusBot {
       );
     } catch (e: any) {
       throw new Error(`_saveDeposit: ${e.message}`);
-    }
-  };
-
-  private _confirmDeposit = async (
-    txid: string
-  ) => {
-    try {
-      if (!(await this.prisma.isValidDeposit(txid))) {
-        this._log(
-          DB,
-          `deposit invalid (likely Give/Withdraw tx): skipping: ${txid}`
-        );
-        return;
-      }
-      const { user, value } = await this.prisma.confirmDeposit(txid);
-      const platformId = user[this.platform.toLowerCase()].id;
-      this._log(DB, `deposit confirmed: ${txid}`);
-      const balance = await this.wallets.getUserBalance(user.id);
-      await this.bot.sendDepositConfirmed(
-        platformId,
-        txid,
-        Util.toLocaleXPI(value),
-        Util.toLocaleXPI(balance)
-      );
-      this._log(
-        this.platform,
-        `${platformId}: user notified of deposit confirmed: ${txid}`
-      );
-    } catch (e: any) {
-      throw new Error(`_confirmDeposit: ${e.message}`);
     }
   };
 

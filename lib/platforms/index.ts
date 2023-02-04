@@ -35,11 +35,6 @@ export interface Platform {
   sendDepositReceived: (
     platformId: string,
     txid: string,
-    amount: string
-  ) => Promise<void>;
-  sendDepositConfirmed: (
-    platformId: string,
-    txid: string,
     amount: string,
     balance: string
   ) => Promise<void>;

@@ -17,7 +17,8 @@ implements Platform {
   sendDepositReceived: (
     platformId: string,
     txid: string,
-    amount: string
+    amount: string,
+    balance: string,
   ) => Promise<void>;
   sendDepositConfirmed: (
     platformId: string,
