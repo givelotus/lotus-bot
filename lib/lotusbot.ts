@@ -299,6 +299,19 @@ export default class LotusBot {
       const userId = !(await this.prisma.isValidUser(platformId))
         ? await this._saveAccount(platformId)
         : await this.prisma.getUserId(platformId);
+      // Get the user's XAddress and check against outAddress
+      const address = this.wallets.getXAddress(userId);
+      if (address == outAddress) {
+        this._log(
+          this.platform,
+          msg + `withdraw to self not allowed`
+        );
+        return await this.bot.sendWithdrawReply(
+          platformId,
+          { error: 'you must withdraw to an external wallet' },
+          message
+        );
+      }
       const balance = await this.wallets.getUserBalance(userId);
       if (sats > balance) {
         this._log(

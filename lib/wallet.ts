@@ -105,11 +105,9 @@ export class WalletManager extends EventEmitter {
     return sats.total;
   };
   /** Return single `WalletKey` of `userId` */
-  getKey = (
-    userId: string
-  ): WalletKey | undefined => {
-    return this.keys[userId];
-  };
+  getKey = (userId: string): WalletKey | undefined => this.keys[userId];
+  /** Return the XAddress of the `WalletKey` of `userId` */
+  getXAddress = (userId: string) => this.keys[userId].address.toXAddress();
   /** Check if given outpoint(s) have been confirmed by network */
   checkUtxosConfirmed = async (
     outpoints: OutPoint[]
