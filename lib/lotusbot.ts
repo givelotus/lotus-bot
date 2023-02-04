@@ -213,40 +213,50 @@ export default class LotusBot {
         ? await this._saveAccount(toId)
         : await this.prisma.getUserId(toId);
       // Give successful; broadcast tx and save to db
-      const txid = await this.wallets.processTx({
+      const tx = await this.wallets.genTx({
         fromUserId,
         toUserId,
         sats
       });
       const timestamp = new Date();
       await this.prisma.saveGive({
-        txid,
+        txid: tx.txid,
         platform: this.platform.toLowerCase(),
         timestamp,
         fromId: fromUserId,
         toId: toUserId,
         value: sats.toString()
       });
-      this._log(
-        DB,
-        `${this.platform}: give saved: ${fromUsername} -> ${toUsername}: ` +
-        txid
+      try {
+        await this.wallets.broadcastTx(fromUserId, tx);
+        const sats = tx.outputs[0].satoshis;
+        this._log(
+          DB,
+          `${this.platform}: give saved: ${fromUsername} -> ${toUsername}: ` +
+          tx.txid
+          );
+        // Send Give success reply to chat
+        await this.bot.sendGiveReply(
+          chatId,
+          replyToMessageId,
+          fromUsername,
+          toUsername,
+          tx.txid,
+          Util.toLocaleXPI(sats),
+          message
         );
-      // Send Give success reply to chat
-      await this.bot.sendGiveReply(
-        chatId,
-        replyToMessageId,
-        fromUsername,
-        toUsername,
-        txid,
-        Util.toLocaleXPI(sats),
-        message
-      );
-      this._log(
-        this.platform,
-        `${fromId}: give: ${fromUsername} -> ${toUsername}: ` +
-        `${sats} sats: success: notified user in group`
-      );
+        this._log(
+          this.platform,
+          msg + `${sats} sats: success: notified user in group`
+        );
+      } catch (e: any) {
+        this._log(
+          this.platform,
+          msg + `broadcast failed: ${e.message}`
+        );
+        await this.prisma.deleteGive(tx.txid);
+        return;
+      }
     } catch (e: any) {
       throw new Error(`_platformHandleGive: ${e.message}`);
     }
@@ -316,30 +326,43 @@ export default class LotusBot {
           message
         );
       }
-      const txid = await this.wallets.processTx({
+      const tx = await this.wallets.genTx({
         fromUserId,
         outAddress,
         sats
       });
-      this._log(WALLET, `withdrawal accepted: ${txid}`);
       const timestamp = new Date();
-      const userId = await this.prisma.getUserId(platformId);
       await this.prisma.saveWithdrawal({
-        txid,
+        txid: tx.txid,
         value: Util.toSats(outAmount).toString(),
         timestamp,
         userId
       });
-      this._log(DB, `withdrawal saved: ${txid}`);
-      await this.bot.sendWithdrawReply(
-        platformId,
-        { txid, amount: Util.toLocaleXPI(sats) },
-        message
-      );
-      this._log(
-        this.platform,
-        `${platformId}: withdraw: user notified of success: ${sats} sats`
-      );
+      this._log(DB, msg + `saved: ${tx.txid}`);
+      try {
+        const txid = await this.wallets.broadcastTx(userId, tx);
+        this._log(WALLET, msg + `accepted: ${txid}`);
+        const sats = tx.outputs[0].satoshis;
+        await this.bot.sendWithdrawReply(
+          platformId,
+          { txid, amount: Util.toLocaleXPI(sats) },
+          message
+        );
+        this._log(
+          this.platform,
+          msg + `user notified: ${sats} sats: ${txid}`
+        );
+      } catch (e: any) {
+        this._log(
+          this.platform,
+          msg + `broadcast failed: ${e.message}`
+        );
+        await this.prisma.deleteWithdrawal(tx.txid);
+        return await this.bot.sendWithdrawReply(
+          platformId,
+          { error: `error processing withdrawal, contact admin` }
+        );
+      }
     } catch (e: any) {
       throw new Error(`_handleWithdrawCommand: ${e.message}`);
     }
