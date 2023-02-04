@@ -183,15 +183,12 @@ export default class LotusBot {
   ) => {
     try {
       const sats = Util.toSats(value);
-      this._log(
-        this.platform,
-        `${fromId}: give: ${fromUsername} -> ${toUsername}: ${sats} sats`
-      );
+      const msg =
+        `${fromId}: give: ${fromUsername} -> ${toUsername}: ${sats} sats: `;
       if (sats < TRANSACTION.MIN_OUTPUT_AMOUNT) {
         this._log(
           this.platform,
-          `${fromId}: give: ${fromUsername} -> ${toUsername}: ` +
-          `minimum required: ${sats} < ${TRANSACTION.MIN_OUTPUT_AMOUNT}`
+          msg + `minimum required: ${TRANSACTION.MIN_OUTPUT_AMOUNT}`
         );
         return;
       }
@@ -203,8 +200,7 @@ export default class LotusBot {
       if (sats > balance) {
         this._log(
           this.platform,
-          `${fromId}: give: ${fromUsername} -> ${toUsername}: ` +
-          `insufficient balance: ${sats} > ${balance}`
+          msg + `insufficient balance: ${balance}`
         );
         return;
       }
@@ -269,29 +265,18 @@ export default class LotusBot {
     message?: Platforms.Message
   ) => {
     try {
-      this._log(
-        this.platform,
-        `${platformId}: withdraw command received: ${outAmount} ${outAddress}`
-      );
+      const msg = `${platformId}: withdraw: ${outAmount} ${outAddress}: `;
+      let error: string;
       if (!WalletManager.isValidAddress(outAddress)) {
-        this._log(
-          this.platform,
-          `${platformId}: withdraw: invalid address: ${outAddress}`
-        );
-        return await this.bot.sendWithdrawReply(
-          platformId,
-          { error: `address invalid` },
-          message
-        );
+        error = 'invalid addres';
+      } else if (isNaN(outAmount)) {
+        error = 'invalid amount';
       }
-      if (isNaN(outAmount)) {
-        this._log(
-          this.platform,
-          `${platformId}: withdraw: invalid amount: ${outAmount}`
-        );
+      if (error) {
+        this._log(this.platform, msg + error);
         return await this.bot.sendWithdrawReply(
           platformId,
-          { error: `amount invalid` },
+          { error },
           message
         );
       }
@@ -299,26 +284,26 @@ export default class LotusBot {
       if (sats < TRANSACTION.MIN_OUTPUT_AMOUNT) {
         this._log(
           this.platform,
-          `${platformId}: withdraw: minimum required: ` +
+          msg + `minimum required: ` +
           `${sats} < ${TRANSACTION.MIN_OUTPUT_AMOUNT}`
         );
         return await this.bot.sendWithdrawReply(
           platformId,
           { error:
-            `minimum required: ` +
+            `withdraw minimum is ` +
             `${Util.toLocaleXPI(TRANSACTION.MIN_OUTPUT_AMOUNT)} XPI`
           },
           message
         );
       }
-      const fromUserId = !(await this.prisma.isValidUser(platformId))
+      const userId = !(await this.prisma.isValidUser(platformId))
         ? await this._saveAccount(platformId)
         : await this.prisma.getUserId(platformId);
-      const balance = await this.wallets.getUserBalance(fromUserId);
-      if (outAmount > balance) {
+      const balance = await this.wallets.getUserBalance(userId);
+      if (sats > balance) {
         this._log(
           this.platform,
-          `${platformId}: withdraw: insufficient balance: ${sats} > ${balance}`
+          msg + `insufficient balance: ${sats} > ${balance}`
         );
         return await this.bot.sendWithdrawReply(
           platformId,
@@ -327,14 +312,14 @@ export default class LotusBot {
         );
       }
       const tx = await this.wallets.genTx({
-        fromUserId,
+        fromUserId: userId,
         outAddress,
         sats
       });
       const timestamp = new Date();
       await this.prisma.saveWithdrawal({
         txid: tx.txid,
-        value: Util.toSats(outAmount).toString(),
+        value: sats.toString(),
         timestamp,
         userId
       });
@@ -342,15 +327,15 @@ export default class LotusBot {
       try {
         const txid = await this.wallets.broadcastTx(userId, tx);
         this._log(WALLET, msg + `accepted: ${txid}`);
-        const sats = tx.outputs[0].satoshis;
+        const outSats = tx.outputs[0].satoshis;
         await this.bot.sendWithdrawReply(
           platformId,
-          { txid, amount: Util.toLocaleXPI(sats) },
+          { txid, amount: Util.toLocaleXPI(outSats) },
           message
         );
         this._log(
           this.platform,
-          msg + `user notified: ${sats} sats: ${txid}`
+          msg + `user notified: ${outSats} sats: ${txid}`
         );
       } catch (e: any) {
         this._log(
