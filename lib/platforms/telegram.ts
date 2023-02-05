@@ -55,6 +55,9 @@ const parseWithdraw = (
     ? parts.slice(index + 1, index + 3)
     : null;
 };
+const escape = (
+  text: string
+) => text.replace(/(_)/g, "\\$1");
 
 export class Telegram 
 extends EventEmitter
@@ -95,11 +98,13 @@ implements Platform {
   ) => {
     try {
       await setTimeout(this._calcReplyDelay());
+      const fromUsernameEscaped = escape(fromUsername);
+      const toUsernameEscaped = escape(toUsername);
       const msg = format(
         BOT.MESSAGE.GIVE,
-        fromUsername,
+        fromUsernameEscaped,
         amount,
-        toUsername,
+        toUsernameEscaped,
         `${config.wallet.explorerUrl}/tx/${txid}`
       );
       await this.bot.telegram.sendMessage(chatId, msg, {
