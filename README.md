@@ -1,4 +1,4 @@
-# Mrs. Turtle
+# lotus-bot v2.1.0
 
 Bot for Multiple Social Networking Platforms for Giving/Receiving Lotus to/from other Users.
 
@@ -17,7 +17,6 @@ Otherwise, you can clone this repo for pre-release development
 - TypeScript ^4.x (Installed during `npm install`) (For Windows Admins: Install this manually & globally)
 - Prisma ^4.8.x (Installed during `npm install`)
 - sqlite3 package (Optional, Linux Only)
-- PostgreSQL or MySQL Server (Optional, not implemented yet)
 
 ## Automatic Installation
 
@@ -45,9 +44,16 @@ In some cases manual install may be required for various reasons, manual install
 5. Then `cp .env.example .env`
 6. Modify `.env` with the required API key(s) for the bot(s) you want to run.
 7. Install dependencies: `npm install`
-8. Initialize the Database: `npx prisma migrate dev --name init`
-9. (Optional) Enable Journaling for extra write performance: `sqlite3 ./prisma/dev.db 'PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;'`
-10. (Optional) Systemd is supported, you can install the service unit files in `lotus-bot/install`: `cp ./install/lotus-bot-*.service /etc/systemd/system` then reload systemd: `systemctl daemon-reload`
+8. Initialize the Database:
+```
+npx prisma migrate dev --name init
+sqlite3 ./prisma/dev.db 'PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;'
+```
+9. systemd is supported, you can install the service unit files from the `install/` folder:
+```
+sudo cp ./install/lotus-bot-*.service /etc/systemd/system
+sudo systemctl daemon-reload
+```
 
 ### Install (Windows)
 
@@ -73,21 +79,17 @@ Notes for using the bot in it's specific social network or social area.
 Commands required for all bots. These commands are for the user-space. These commands are not administrative in nature.
 
 ```
-/balance .......... Get the XPI Balance of the current user.
-/deposit .......... Start deposit with QR or lotus_ address.
-/withdraw ......... Start withdraw to external wallet.
-/give    .......... Give XPI to mentioned user.
-
-# Syntax
-/give <userToGiveTo> <amount>
-/withdraw <amount> <externalWalletAddress>
+balance .......... Get the XPI Balance of the current user.
+deposit .......... Start deposit with QR or lotus_ address.
+withdraw ......... Start withdraw to external wallet.
+give    .......... Give XPI to mentioned user.
 ```
-In some cases, you can use `/give <amount>` as an alternative syntax when replying to a message in the Twitter & Telegram bot.
 
+## Runtime Notes
 
-### Default Bot Account
+### On-Chain Giving
 
-On first launch, `lotus-bot` will generate an account, containing a `WalletKey`, for the bot itself. This account has a UUID of `00000000-0000-0000-0000-000000000000`. The address for this account is then displayed on the console after initialization. Bot has it's own wallet for transaction / withdrawal fees. You will see a notice about this when launching a bot manually. **Use this address to provide UTXOs for processing user withdrawals (i.e. transaction fees).**
+Starting with v2.1.0, the "give" interaction of lotus-bot is now done on-chain. The Give database table is now simply used for tracking gives rather than for calculating user balances. User balances are now calculated solely by the UTXOs of the user's `WalletKey`. 
 
 ### Write-Ahead Logging on sqlite3
 
