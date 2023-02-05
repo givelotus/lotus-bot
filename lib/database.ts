@@ -143,7 +143,6 @@ export class Database {
         select: { users: { 
           select: {
             deposits: {
-              where: { confirmed: true },
               select: { value: true }
             },
             withdrawals: { select: { value: true }},
@@ -319,31 +318,6 @@ export class Database {
       await this.prisma.withdrawal.create({ data });
     } catch (e: any) {
       throw new Error(`saveWithdrawal: ${e.message}`);
-    }
-  };
-  /**
-   * Confirm the deposit after notification from Chronik API  
-   * Return the `platformId`s to notify the user
-   */
-  confirmDeposit = async (
-    txid: string
-  ) => {
-    try {
-      const result = await this.prisma.deposit.update({
-        where: { txid },
-        data: { confirmed: true },
-        select: { value: true, user: {
-          select: {
-            telegram: true,
-            twitter: true,
-            discord: true,
-            id: true
-          }
-        }}
-      });
-      return result;
-    } catch (e: any) {
-      throw new Error(`confirmDeposit: ${e.message}`);
     }
   };
 
