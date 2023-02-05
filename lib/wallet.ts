@@ -184,11 +184,12 @@ export class WalletManager extends EventEmitter {
   broadcastTx = async (
     userId: string,
     tx: Transaction,
+    usedUtxoCount: number
   ) => {
     try {
       const txBuf = tx.toBuffer();
       const broadcasted = await this.chronik.broadcastTx(txBuf);
-      await this._reconcileUtxos(userId);
+      this.keys[userId].utxos.splice(0, usedUtxoCount);
       return broadcasted.txid;
     } catch (e: any) {
       throw new Error(`_broadcastTx: ${e.message}`);
@@ -202,9 +203,11 @@ export class WalletManager extends EventEmitter {
     outSats: number
   ) => {
     const tx = new Transaction();
+    let usedUtxoCount: number = 0;
     try {
       for (const utxo of utxos) {
         tx.addInput(this._toPKHInput(utxo, key.script));
+        usedUtxoCount++;
         if (tx.inputAmount > outSats) {
           break;
         }
@@ -224,7 +227,7 @@ export class WalletManager extends EventEmitter {
       const verified = tx.verify();
       switch (typeof verified) {
         case 'boolean':
-          return tx;
+          return { tx, usedUtxoCount };
         case 'string':
           throw new Error(verified);
       }

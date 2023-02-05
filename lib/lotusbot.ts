@@ -209,7 +209,7 @@ export default class LotusBot {
         ? await this._saveAccount(toId)
         : await this.prisma.getUserId(toId);
       // Give successful; broadcast tx and save to db
-      const tx = await this.wallets.genTx({
+      const { tx, usedUtxoCount } = await this.wallets.genTx({
         fromUserId,
         toUserId,
         sats
@@ -224,7 +224,7 @@ export default class LotusBot {
         value: sats.toString()
       });
       try {
-        await this.wallets.broadcastTx(fromUserId, tx);
+        await this.wallets.broadcastTx(fromUserId, tx, usedUtxoCount);
         const sats = tx.outputs[0].satoshis;
         this._log(
           DB,
@@ -324,7 +324,8 @@ export default class LotusBot {
           message
         );
       }
-      const tx = await this.wallets.genTx({
+      // Generate transaction and get num of utxos used in the tx
+      const { tx, usedUtxoCount } = await this.wallets.genTx({
         fromUserId: userId,
         outAddress,
         sats
@@ -338,7 +339,7 @@ export default class LotusBot {
       });
       this._log(DB, msg + `saved: ${tx.txid}`);
       try {
-        const txid = await this.wallets.broadcastTx(userId, tx);
+        const txid = await this.wallets.broadcastTx(userId, tx, usedUtxoCount);
         this._log(WALLET, msg + `accepted: ${txid}`);
         const outSats = tx.outputs[0].satoshis;
         await this.bot.sendWithdrawReply(
