@@ -10,7 +10,6 @@ import {
   Partials,
   ActivityType,
   Message,
-  DMChannel,
   ChannelType
 } from 'discord.js';
 import { BOT } from '../../util/constants';
@@ -59,7 +58,6 @@ export declare interface Discord {
     wAddress: string,
   ) => void): this;
 }
-
 export class Discord 
 extends EventEmitter
 implements Platform {
@@ -73,7 +71,6 @@ implements Platform {
 
   constructor() {   
     super();
-    this.lastReplyTime = Date.now();
     // Discord bot client and api setup
     this.clientId = config.discord.clientId;
     this.guildIds = config.discord.guildId.split(",");
@@ -194,8 +191,7 @@ implements Platform {
         .setURL(`${config.wallet.explorerUrl}/address/${address}`)
         .setDescription('Send Lotus here to fund your account')
         .addFields({ name: 'Lotus Address', value: address })
-        .setImage(`${config.wallet.explorerUrl}/qr/${address}`)
-        .setTimestamp();
+        .setImage(`${config.wallet.explorerUrl}/qr/${address}`);
 
       const userObj = await this.client.users.fetch(platformId);
       await userObj.send({embeds: [depositReplyEmbed]});
@@ -216,39 +212,15 @@ implements Platform {
         .setURL(`${config.wallet.explorerUrl}/tx/${txid}`)
         .setDescription(
           `I received your deposit of ${amount} XPI. ` +
-          `I will let you know when it confirms.`
-        )
-        .setTimestamp();
-
+          `Your balance is now ${balance} XPI.`
+        );
       const userObj = await this.client.users.fetch(platformId);
       await userObj.send({ embeds: [embedMessage] });
     } catch (e: any) {
       throw new Error(`sendDepositReceived: ${e.message}`);
     }
   };
-  sendDepositConfirmed = async (
-    platformId: string,
-    txid: string,
-    amount: string,
-    balance: string
-  ) => {
-    try {
-      const embedMessage = new EmbedBuilder()
-        .setColor(secondaryColor)
-        .setTitle('Deposit Confirmed 🪷 - Click Here to see the tx.')
-        .setURL(`${config.wallet.explorerUrl}/tx/${txid}`)
-        .setDescription(
-          `Your deposit of ${amount} XPI has been confirmed! ` +
-          `Your balance is now ${balance} XPI.`
-        )
-        .setTimestamp();
 
-      const userObj = await this.client.users.fetch(platformId);
-      await userObj.send({ embeds: [embedMessage] });
-    } catch (e: any) {
-      throw new Error(`sendDepositConfirmed: ${e.message}`);
-    }
-  };
   sendGiveReply = async (
     chatId: string,
     replyToMessageId: number,
@@ -262,9 +234,14 @@ implements Platform {
       const { user, options } = interaction;
       const fromUser = `<@${user.id}>`;
       const toUser = `<@${options.getUser('to').id}>`;
-      await interaction.reply(
-        format(BOT.MESSAGE.GIVE, fromUser, amount, toUser)
-      );
+      const giveReplyEmbed = new EmbedBuilder()
+        .setColor(primaryColor)
+        .setTitle(`🪷 Click Here to see the tx 🪷`)
+        .setURL(`${config.wallet.explorerUrl}/tx/${txid}`)
+        .setDescription(`${fromUser}, you have given ${amount} XPI to ${toUser}! 🪷`);
+        //.addFields({ name: 'From', value: `${fromUser}` })
+        //.addFields({ name: 'To', value: `${toUser}` });
+      await interaction.reply({embeds: [giveReplyEmbed]});
     } catch (e: any) {
       throw new Error(`sendGiveReply: ${e.message}`);
     }
@@ -288,11 +265,10 @@ implements Platform {
         return;
       }
       const embedMessage = new EmbedBuilder()
-        .setColor(primaryColor)
+        .setColor(secondaryColor)
         .setTitle('Withdrawal Successful 🪷 - Click Here to see the tx.')
         .setURL(`${config.wallet.explorerUrl}/tx/${txid}`)
-        .setDescription(`Your withdrawal of ${amount} XPI was successful!`)
-        .setTimestamp();
+        .setDescription(`Your withdrawal of ${amount} XPI was successful!`);
 
       await userObj.send({embeds: [embedMessage]});
     } catch (e: any) {
@@ -324,7 +300,6 @@ implements Platform {
     if (author.id == this.clientId || message.channel.type != ChannelType.DM) {
       return;
     }
-
     const words = content.trim().split(" ");
     const command = words[0];
     const amount = Number(words[1]);
