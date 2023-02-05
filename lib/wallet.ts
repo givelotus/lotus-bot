@@ -105,11 +105,9 @@ export class WalletManager extends EventEmitter {
     return sats.total;
   };
   /** Return single `WalletKey` of `userId` */
-  getKey = (
-    userId: string
-  ): WalletKey | undefined => {
-    return this.keys[userId];
-  };
+  getKey = (userId: string): WalletKey | undefined => this.keys[userId];
+  /** Return the XAddress of the `WalletKey` of `userId` */
+  getXAddress = (userId: string) => this.keys[userId].address.toXAddress();
   /** Check if given outpoint(s) have been confirmed by network */
   checkUtxosConfirmed = async (
     outpoints: OutPoint[]
@@ -160,7 +158,7 @@ export class WalletManager extends EventEmitter {
     }
   };
   /** Process Give/Withdraw tx for the provided `fromUserId` */
-  processTx = async ({
+  genTx = async ({
     fromUserId,
     toUserId,
     outAddress,
@@ -172,17 +170,29 @@ export class WalletManager extends EventEmitter {
     sats: number
   }) => {
     try {
-      const { tx, utxoCount } = this._genTx(
+      return this._genTx(
         this.keys[fromUserId],
         this.keys[fromUserId].utxos,
         outAddress || this.keys[toUserId].address,
         sats
       );
-      const txid = await this._broadcastTx(tx);
-      this.keys[fromUserId].utxos.splice(0, utxoCount);
-      return txid;
     } catch (e: any) {
-      throw new Error(`processTx: ${e.message}`);
+      throw new Error(`genTx: ${e.message}`);
+    }
+  };
+  /** Broadcast the provided tx for the provided userId */
+  broadcastTx = async (
+    userId: string,
+    tx: Transaction,
+    usedUtxoCount: number
+  ) => {
+    try {
+      const txBuf = tx.toBuffer();
+      const broadcasted = await this.chronik.broadcastTx(txBuf);
+      this.keys[userId].utxos.splice(0, usedUtxoCount);
+      return broadcasted.txid;
+    } catch (e: any) {
+      throw new Error(`_broadcastTx: ${e.message}`);
     }
   };
   /** Generate transaction for `WalletKey` using provided `utxos` */
@@ -192,12 +202,12 @@ export class WalletManager extends EventEmitter {
     outAddress: string | Address,
     outSats: number
   ) => {
-    const used = { count: 0 };
     const tx = new Transaction();
+    let usedUtxoCount: number = 0;
     try {
       for (const utxo of utxos) {
         tx.addInput(this._toPKHInput(utxo, key.script));
-        used.count++;
+        usedUtxoCount++;
         if (tx.inputAmount > outSats) {
           break;
         }
@@ -217,23 +227,12 @@ export class WalletManager extends EventEmitter {
       const verified = tx.verify();
       switch (typeof verified) {
         case 'boolean':
-          return { tx, utxoCount: used.count };
+          return { tx, usedUtxoCount };
         case 'string':
           throw new Error(verified);
       }
     } catch (e: any) {
       throw new Error(`_genTx: ${e.message}`);
-    }
-  };
-  private _broadcastTx = async (
-    tx: Transaction
-  ) => {
-    try {
-      const txBuf = tx.toBuffer();
-      const broadcasted = await this.chronik.broadcastTx(txBuf);
-      return broadcasted.txid;
-    } catch (e: any) {
-      throw new Error(`_broadcastTx: ${e.message}`);
     }
   };
   /**

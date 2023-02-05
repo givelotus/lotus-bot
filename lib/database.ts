@@ -281,6 +281,28 @@ export class Database {
       throw new Error(`saveDeposit: ${e.message}`);
     }
   };
+  deleteGive = async (
+    txid: string
+  ) => {
+    try {
+      await this.prisma.give.delete({
+        where: { txid }
+      });
+    } catch (e: any) {
+      throw new Error(`deleteGive: ${e.message}`);
+    }
+  };
+  deleteWithdrawal = async (
+    txid: string
+  ) => {
+    try {
+      await this.prisma.withdrawal.delete({
+        where: { txid }
+      });
+    } catch (e: any) {
+      throw new Error(`deleteWithdrawal: ${e.message}`);
+    }
+  };
   saveGive = async (
     data: Give
   ) => {

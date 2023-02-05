@@ -15,6 +15,8 @@ const WALLET = 'walletmanager';
 const DB = 'prisma';
 const MAIN = 'lotusbot';
 
+const { MIN_OUTPUT_AMOUNT } = TRANSACTION;
+
 export default class LotusBot {
   private prisma: Database;
   private wallets: WalletManager;
@@ -121,9 +123,7 @@ export default class LotusBot {
   private _handleUtxoAddedToMempool = async (
     utxo: AccountUtxo
   ) => {
-    const utxoString = JSON.stringify(utxo);
     try {
-      this._log(WALLET, `deposit received: ${utxoString}`);
       await this._saveDeposit(utxo);
     } catch (e: any) {
       throw new Error(`_handleUtxoAddedToMempool: ${e.message}`);
@@ -182,16 +182,17 @@ export default class LotusBot {
     message?: Platforms.Message
   ) => {
     try {
-      const sats = Util.toSats(value);
       this._log(
         this.platform,
-        `${fromId}: give: ${fromUsername} -> ${toUsername}: ${sats} sats`
+        `${fromId}: give command received: ${fromUsername} -> ${toUsername}`
       );
-      if (sats < TRANSACTION.MIN_OUTPUT_AMOUNT) {
+      const sats = Util.toSats(value);
+      const msg =
+        `${fromId}: give: ${fromUsername} -> ${toUsername}: ${sats} sats: `;
+      if (sats < MIN_OUTPUT_AMOUNT) {
         this._log(
           this.platform,
-          `${fromId}: give: ${fromUsername} -> ${toUsername}: ` +
-          `minimum required: ${sats} < ${TRANSACTION.MIN_OUTPUT_AMOUNT}`
+          msg + `minimum required: ${MIN_OUTPUT_AMOUNT}`
         );
         return;
       }
@@ -201,11 +202,7 @@ export default class LotusBot {
         : await this.prisma.getUserId(fromId);
       const balance = await this.wallets.getUserBalance(fromUserId);
       if (sats > balance) {
-        this._log(
-          this.platform,
-          `${fromId}: give: ${fromUsername} -> ${toUsername}: ` +
-          `insufficient balance: ${sats} > ${balance}`
-        );
+        this._log(this.platform, msg + `insufficient balance: ${balance}`);
         return;
       }
       // Create account for toId if not exist
@@ -213,40 +210,40 @@ export default class LotusBot {
         ? await this._saveAccount(toId)
         : await this.prisma.getUserId(toId);
       // Give successful; broadcast tx and save to db
-      const txid = await this.wallets.processTx({
+      const { tx, usedUtxoCount } = await this.wallets.genTx({
         fromUserId,
         toUserId,
         sats
       });
       const timestamp = new Date();
       await this.prisma.saveGive({
-        txid,
+        txid: tx.txid,
         platform: this.platform.toLowerCase(),
         timestamp,
         fromId: fromUserId,
         toId: toUserId,
         value: sats.toString()
       });
-      this._log(
-        DB,
-        `${this.platform}: give saved: ${fromUsername} -> ${toUsername}: ` +
-        txid
+      try {
+        await this.wallets.broadcastTx(fromUserId, tx, usedUtxoCount);
+        const sats = tx.outputs[0].satoshis;
+        this._log(DB, msg + `saved to db: ` + tx.txid);
+        // Send Give success reply to chat
+        await this.bot.sendGiveReply(
+          chatId,
+          replyToMessageId,
+          fromUsername,
+          toUsername,
+          tx.txid,
+          Util.toLocaleXPI(sats),
+          message
         );
-      // Send Give success reply to chat
-      await this.bot.sendGiveReply(
-        chatId,
-        replyToMessageId,
-        fromUsername,
-        toUsername,
-        txid,
-        Util.toLocaleXPI(sats),
-        message
-      );
-      this._log(
-        this.platform,
-        `${fromId}: give: ${fromUsername} -> ${toUsername}: ` +
-        `${sats} sats: success: notified user in group`
-      );
+        this._log(this.platform, msg + `success: user notified`);
+      } catch (e: any) {
+        this._log(this.platform, msg + `broadcast failed: ${e.message}`);
+        await this.prisma.deleteGive(tx.txid);
+        return;
+      }
     } catch (e: any) {
       throw new Error(`_platformHandleGive: ${e.message}`);
     }
@@ -263,52 +260,55 @@ export default class LotusBot {
         this.platform,
         `${platformId}: withdraw command received: ${outAmount} ${outAddress}`
       );
+      const msg = `${platformId}: withdraw: ${outAmount} ${outAddress}: `;
+      let error: string;
       if (!WalletManager.isValidAddress(outAddress)) {
-        this._log(
-          this.platform,
-          `${platformId}: withdraw: invalid address: ${outAddress}`
-        );
-        return await this.bot.sendWithdrawReply(
-          platformId,
-          { error: `address invalid` },
-          message
-        );
+        error = 'invalid address';
+      } else if (isNaN(outAmount)) {
+        error = 'invalid amount';
       }
-      if (isNaN(outAmount)) {
-        this._log(
-          this.platform,
-          `${platformId}: withdraw: invalid amount: ${outAmount}`
-        );
-        return await this.bot.sendWithdrawReply(
-          platformId,
-          { error: `amount invalid` },
-          message
-        );
+      if (error) {
+        this._log(this.platform, msg + error);
+        return await this.bot.sendWithdrawReply(platformId, { error }, message);
       }
       const sats = Util.toSats(outAmount);
-      if (sats < TRANSACTION.MIN_OUTPUT_AMOUNT) {
+      if (sats < MIN_OUTPUT_AMOUNT) {
         this._log(
           this.platform,
-          `${platformId}: withdraw: minimum required: ` +
-          `${sats} < ${TRANSACTION.MIN_OUTPUT_AMOUNT}`
+          msg + `minimum required: ` +
+          `${sats} < ${MIN_OUTPUT_AMOUNT}`
         );
         return await this.bot.sendWithdrawReply(
           platformId,
           { error:
-            `minimum required: ` +
-            `${Util.toLocaleXPI(TRANSACTION.MIN_OUTPUT_AMOUNT)} XPI`
+            `withdraw minimum is ` +
+            `${Util.toLocaleXPI(MIN_OUTPUT_AMOUNT)} XPI`
           },
           message
         );
       }
-      const fromUserId = !(await this.prisma.isValidUser(platformId))
+      const userId = !(await this.prisma.isValidUser(platformId))
         ? await this._saveAccount(platformId)
         : await this.prisma.getUserId(platformId);
-      const balance = await this.wallets.getUserBalance(fromUserId);
-      if (outAmount > balance) {
+      // Get the user's XAddress and check against outAddress
+      const address = this.wallets.getXAddress(userId);
+      if (address == outAddress) {
         this._log(
           this.platform,
-          `${platformId}: withdraw: insufficient balance: ${sats} > ${balance}`
+          msg + `withdraw to self not allowed`
+        );
+        return await this.bot.sendWithdrawReply(
+          platformId,
+          { error: 'you must withdraw to an external wallet' },
+          message
+        );
+      }
+      // Get the user's balance and check against outAmount
+      const balance = await this.wallets.getUserBalance(userId);
+      if (sats > balance) {
+        this._log(
+          this.platform,
+          msg + `insufficient balance: ${sats} > ${balance}`
         );
         return await this.bot.sendWithdrawReply(
           platformId,
@@ -316,30 +316,46 @@ export default class LotusBot {
           message
         );
       }
-      const txid = await this.wallets.processTx({
-        fromUserId,
+      // Generate transaction and get num of utxos used in the tx
+      const { tx, usedUtxoCount } = await this.wallets.genTx({
+        fromUserId: userId,
         outAddress,
         sats
       });
-      this._log(WALLET, `withdrawal accepted: ${txid}`);
-      const timestamp = new Date();
-      const userId = await this.prisma.getUserId(platformId);
+      // Save the withdrawal to the database before broadcasting
       await this.prisma.saveWithdrawal({
-        txid,
-        value: Util.toSats(outAmount).toString(),
-        timestamp,
+        txid: tx.txid,
+        value: sats.toString(),
+        timestamp: new Date(),
         userId
       });
-      this._log(DB, `withdrawal saved: ${txid}`);
-      await this.bot.sendWithdrawReply(
-        platformId,
-        { txid, amount: Util.toLocaleXPI(sats) },
-        message
-      );
-      this._log(
-        this.platform,
-        `${platformId}: withdraw: user notified of success: ${sats} sats`
-      );
+      this._log(DB, msg + `saved: ${tx.txid}`);
+      try {
+        // Broadcast the withdrawal to network
+        const txid = await this.wallets.broadcastTx(userId, tx, usedUtxoCount);
+        this._log(WALLET, msg + `accepted: ${txid}`);
+        // Get the actual number of sats in the tx output to reply to user
+        const outSats = tx.outputs[0].satoshis;
+        await this.bot.sendWithdrawReply(
+          platformId,
+          { txid, amount: Util.toLocaleXPI(outSats) },
+          message
+        );
+        this._log(
+          this.platform,
+          msg + `user notified: ${outSats} sats: ${txid}`
+        );
+      } catch (e: any) {
+        this._log(
+          this.platform,
+          msg + `broadcast failed: ${e.message}`
+        );
+        await this.prisma.deleteWithdrawal(tx.txid);
+        return await this.bot.sendWithdrawReply(
+          platformId,
+          { error: `error processing withdrawal, contact admin` }
+        );
+      }
     } catch (e: any) {
       throw new Error(`_handleWithdrawCommand: ${e.message}`);
     }
@@ -384,15 +400,14 @@ export default class LotusBot {
         await this.prisma.isGiveTx(utxo.txid) ||
         await this.prisma.isWithdrawTx(utxo.txid)
       ) {
-        this._log(DB, `deposit is a Give/Withdraw tx: skipping: ${utxo.txid}`);
         return;
       }
       const timestamp = new Date();
       const data = { ...utxo, timestamp };
       const deposit = await this.prisma.saveDeposit(data);
+      this._log(DB, `deposit saved: ${JSON.stringify(utxo)}`);
       const platformId = deposit.user[this.platform.toLowerCase()].id;
       const balance = await this.wallets.getUserBalance(utxo.userId);
-      this._log(DB, `deposit saved: ${utxo.txid}`);
       await this.bot.sendDepositReceived(
         platformId,
         utxo.txid,
