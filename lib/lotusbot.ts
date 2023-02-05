@@ -15,6 +15,8 @@ const WALLET = 'walletmanager';
 const DB = 'prisma';
 const MAIN = 'lotusbot';
 
+const { MIN_OUTPUT_AMOUNT } = TRANSACTION;
+
 export default class LotusBot {
   private prisma: Database;
   private wallets: WalletManager;
@@ -121,9 +123,7 @@ export default class LotusBot {
   private _handleUtxoAddedToMempool = async (
     utxo: AccountUtxo
   ) => {
-    const utxoString = JSON.stringify(utxo);
     try {
-      this._log(WALLET, `deposit received: ${utxoString}`);
       await this._saveDeposit(utxo);
     } catch (e: any) {
       throw new Error(`_handleUtxoAddedToMempool: ${e.message}`);
@@ -182,13 +182,17 @@ export default class LotusBot {
     message?: Platforms.Message
   ) => {
     try {
+      this._log(
+        this.platform,
+        `${fromId}: give command received: ${fromUsername} -> ${toUsername}`
+      );
       const sats = Util.toSats(value);
       const msg =
         `${fromId}: give: ${fromUsername} -> ${toUsername}: ${sats} sats: `;
-      if (sats < TRANSACTION.MIN_OUTPUT_AMOUNT) {
+      if (sats < MIN_OUTPUT_AMOUNT) {
         this._log(
           this.platform,
-          msg + `minimum required: ${TRANSACTION.MIN_OUTPUT_AMOUNT}`
+          msg + `minimum required: ${MIN_OUTPUT_AMOUNT}`
         );
         return;
       }
@@ -198,10 +202,7 @@ export default class LotusBot {
         : await this.prisma.getUserId(fromId);
       const balance = await this.wallets.getUserBalance(fromUserId);
       if (sats > balance) {
-        this._log(
-          this.platform,
-          msg + `insufficient balance: ${balance}`
-        );
+        this._log(this.platform, msg + `insufficient balance: ${balance}`);
         return;
       }
       // Create account for toId if not exist
@@ -226,11 +227,7 @@ export default class LotusBot {
       try {
         await this.wallets.broadcastTx(fromUserId, tx, usedUtxoCount);
         const sats = tx.outputs[0].satoshis;
-        this._log(
-          DB,
-          `${this.platform}: give saved: ${fromUsername} -> ${toUsername}: ` +
-          tx.txid
-          );
+        this._log(DB, msg + `saved to db: ` + tx.txid);
         // Send Give success reply to chat
         await this.bot.sendGiveReply(
           chatId,
@@ -241,15 +238,9 @@ export default class LotusBot {
           Util.toLocaleXPI(sats),
           message
         );
-        this._log(
-          this.platform,
-          msg + `${sats} sats: success: notified user in group`
-        );
+        this._log(this.platform, msg + `success: user notified`);
       } catch (e: any) {
-        this._log(
-          this.platform,
-          msg + `broadcast failed: ${e.message}`
-        );
+        this._log(this.platform, msg + `broadcast failed: ${e.message}`);
         await this.prisma.deleteGive(tx.txid);
         return;
       }
@@ -265,33 +256,33 @@ export default class LotusBot {
     message?: Platforms.Message
   ) => {
     try {
+      this._log(
+        this.platform,
+        `${platformId}: withdraw command received: ${outAmount} ${outAddress}`
+      );
       const msg = `${platformId}: withdraw: ${outAmount} ${outAddress}: `;
       let error: string;
       if (!WalletManager.isValidAddress(outAddress)) {
-        error = 'invalid addres';
+        error = 'invalid address';
       } else if (isNaN(outAmount)) {
         error = 'invalid amount';
       }
       if (error) {
         this._log(this.platform, msg + error);
-        return await this.bot.sendWithdrawReply(
-          platformId,
-          { error },
-          message
-        );
+        return await this.bot.sendWithdrawReply(platformId, { error }, message);
       }
       const sats = Util.toSats(outAmount);
-      if (sats < TRANSACTION.MIN_OUTPUT_AMOUNT) {
+      if (sats < MIN_OUTPUT_AMOUNT) {
         this._log(
           this.platform,
           msg + `minimum required: ` +
-          `${sats} < ${TRANSACTION.MIN_OUTPUT_AMOUNT}`
+          `${sats} < ${MIN_OUTPUT_AMOUNT}`
         );
         return await this.bot.sendWithdrawReply(
           platformId,
           { error:
             `withdraw minimum is ` +
-            `${Util.toLocaleXPI(TRANSACTION.MIN_OUTPUT_AMOUNT)} XPI`
+            `${Util.toLocaleXPI(MIN_OUTPUT_AMOUNT)} XPI`
           },
           message
         );
@@ -312,6 +303,7 @@ export default class LotusBot {
           message
         );
       }
+      // Get the user's balance and check against outAmount
       const balance = await this.wallets.getUserBalance(userId);
       if (sats > balance) {
         this._log(
@@ -330,17 +322,19 @@ export default class LotusBot {
         outAddress,
         sats
       });
-      const timestamp = new Date();
+      // Save the withdrawal to the database before broadcasting
       await this.prisma.saveWithdrawal({
         txid: tx.txid,
         value: sats.toString(),
-        timestamp,
+        timestamp: new Date(),
         userId
       });
       this._log(DB, msg + `saved: ${tx.txid}`);
       try {
+        // Broadcast the withdrawal to network
         const txid = await this.wallets.broadcastTx(userId, tx, usedUtxoCount);
         this._log(WALLET, msg + `accepted: ${txid}`);
+        // Get the actual number of sats in the tx output to reply to user
         const outSats = tx.outputs[0].satoshis;
         await this.bot.sendWithdrawReply(
           platformId,
@@ -406,15 +400,14 @@ export default class LotusBot {
         await this.prisma.isGiveTx(utxo.txid) ||
         await this.prisma.isWithdrawTx(utxo.txid)
       ) {
-        this._log(DB, `deposit is a Give/Withdraw tx: skipping: ${utxo.txid}`);
         return;
       }
       const timestamp = new Date();
       const data = { ...utxo, timestamp };
       const deposit = await this.prisma.saveDeposit(data);
+      this._log(DB, `deposit saved: ${JSON.stringify(utxo)}`);
       const platformId = deposit.user[this.platform.toLowerCase()].id;
       const balance = await this.wallets.getUserBalance(utxo.userId);
-      this._log(DB, `deposit saved: ${utxo.txid}`);
       await this.bot.sendDepositReceived(
         platformId,
         utxo.txid,
