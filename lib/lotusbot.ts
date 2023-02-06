@@ -224,10 +224,16 @@ export default class LotusBot {
         toId: toUserId,
         value: sats.toString()
       });
+      this._log(DB, msg + `saved to db: ` + tx.txid);
       try {
         await this.wallets.broadcastTx(fromUserId, tx, usedUtxoCount);
+      } catch (e: any) {
+        this._log(this.platform, msg + `broadcast failed: ${e.message}`);
+        await this.prisma.deleteGive(tx.txid);
+        return;
+      }
+      try {
         const sats = tx.outputs[0].satoshis;
-        this._log(DB, msg + `saved to db: ` + tx.txid);
         // Send Give success reply to chat
         await this.bot.sendGiveReply(
           chatId,
@@ -240,9 +246,7 @@ export default class LotusBot {
         );
         this._log(this.platform, msg + `success: user notified`);
       } catch (e: any) {
-        this._log(this.platform, msg + `broadcast failed: ${e.message}`);
-        await this.prisma.deleteGive(tx.txid);
-        return;
+        this._log(this.platform, msg + `failed to notify user: ${e.message}`);
       }
     } catch (e: any) {
       throw new Error(`_platformHandleGive: ${e.message}`);
@@ -330,21 +334,11 @@ export default class LotusBot {
         userId
       });
       this._log(DB, msg + `saved: ${tx.txid}`);
+      // try to broadcast the withdrawal tx
       try {
         // Broadcast the withdrawal to network
         const txid = await this.wallets.broadcastTx(userId, tx, usedUtxoCount);
         this._log(WALLET, msg + `accepted: ${txid}`);
-        // Get the actual number of sats in the tx output to reply to user
-        const outSats = tx.outputs[0].satoshis;
-        await this.bot.sendWithdrawReply(
-          platformId,
-          { txid, amount: Util.toLocaleXPI(outSats) },
-          message
-        );
-        this._log(
-          this.platform,
-          msg + `user notified: ${outSats} sats: ${txid}`
-        );
       } catch (e: any) {
         this._log(
           this.platform,
@@ -355,6 +349,22 @@ export default class LotusBot {
           platformId,
           { error: `error processing withdrawal, contact admin` }
         );
+      }
+      // try to notify user of successful withdrawal
+      try {
+        // Get the actual number of sats in the tx output to reply to user
+        const outSats = tx.outputs[0].satoshis;
+        await this.bot.sendWithdrawReply(
+          platformId,
+          { txid: tx.txid, amount: Util.toLocaleXPI(outSats) },
+          message
+        );
+        this._log(
+          this.platform,
+          msg + `user notified: ${outSats} sats: ${tx.txid}`
+        );
+      } catch (e: any) {
+        this._log(this.platform, msg + `failed to notify user: ${e.message}`);
       }
     } catch (e: any) {
       throw new Error(`_handleWithdrawCommand: ${e.message}`);
@@ -408,16 +418,24 @@ export default class LotusBot {
       this._log(DB, `deposit saved: ${JSON.stringify(utxo)}`);
       const platformId = deposit.user[this.platform.toLowerCase()].id;
       const balance = await this.wallets.getUserBalance(utxo.userId);
-      await this.bot.sendDepositReceived(
-        platformId,
-        utxo.txid,
-        Util.toLocaleXPI(utxo.value),
-        Util.toLocaleXPI(balance)
-      );
-      this._log(
-        this.platform,
-        `${platformId}: user notified of deposit received: ${utxo.txid}`
-      );
+      // try to notify user of deposit received
+      try {
+        await this.bot.sendDepositReceived(
+          platformId,
+          utxo.txid,
+          Util.toLocaleXPI(utxo.value),
+          Util.toLocaleXPI(balance)
+        );
+        this._log(
+          this.platform,
+          `${platformId}: user notified of deposit received: ${utxo.txid}`
+        );
+      } catch (e: any) {
+        this._log(
+          this.platform,
+          `failed to notify user of deposit received: ${e.message}`
+        );
+      }
     } catch (e: any) {
       throw new Error(`_saveDeposit: ${e.message}`);
     }
