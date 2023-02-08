@@ -15,9 +15,11 @@ export type TelegramMessage = Context;
 
 export declare interface Telegram {
   on(event: 'Balance', callback: (
+    platform: string,
     platformId: string
   ) => void): this;
   on(event: 'Give', callback: (
+    platform: string,
     chatId: string,
     replyToMessageId: number,
     fromId: string,
@@ -27,9 +29,11 @@ export declare interface Telegram {
     value: string
   ) => void): this;
   on(event: 'Deposit', callback: (
+    platform: string,
     platformId: string,
   ) => void): this;
   on(event: 'Withdraw', callback: (
+    platform: string,
     platformId: string,
     wAmount: number,
     wAddress: string,
@@ -236,7 +240,7 @@ implements Platform {
     const command = messageText.split(' ').shift();
     switch (command) {
       case '/deposit':
-        return this.emit('Deposit', platformId);
+        return this.emit('Deposit', 'telegram', platformId);
       case '/withdraw':
         const [ wAmount, wAddress ] = parseWithdraw(messageText);
         if (!wAmount || !wAddress) {
@@ -251,9 +255,15 @@ implements Platform {
             { parse_mode: 'Markdown' }
           );
         }
-        return this.emit('Withdraw', platformId, wAmount, wAddress);
+        return this.emit(
+          'Withdraw',
+          'telegram',
+          platformId,
+          wAmount,
+          wAddress
+        );
       case '/balance':
-        return this.emit('Balance', platformId);
+        return this.emit('Balance', 'telegram', platformId);
       case '/start':
         reply.msg = `Welcome to my home! ` +
         `I can help you deposit Lotus and give Lotus to other users.\r\n\r\n` +
@@ -308,7 +318,9 @@ implements Platform {
           { reply_to_message_id: replyToMessageId }
         );
       }
-      this.emit('Give',
+      this.emit(
+        'Give',
+        'telegram', 
         chatId,
         replyToMessageId,
         fromId.toString(),

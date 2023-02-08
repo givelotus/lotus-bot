@@ -38,9 +38,11 @@ type CommandOption = {
 
 export declare interface Discord {
   on(event: 'Balance', callback: (
+    platform: string,
     platformId: string
   ) => void): this;
   on(event: 'Give', callback: (
+    platform: string,
     chatId: string,
     replyToMessageId: number,
     fromId: string,
@@ -50,9 +52,11 @@ export declare interface Discord {
     value: string
   ) => void): this;
   on(event: 'Deposit', callback: (
+    platform: string,
     platformId: string,
   ) => void): this;
   on(event: 'Withdraw', callback: (
+    platform: string,
     platformId: string,
     wAmount: number,
     wAddress: string,
@@ -306,10 +310,10 @@ implements Platform {
     const wAddress = words[2] || null;
     switch (command) {
       case "balance":
-        this.emit('Balance', author.id, message);
+        this.emit('Balance', 'discord', author.id, message);
         break;
       case "deposit":
-        this.emit('Deposit', author.id);
+        this.emit('Deposit', 'discord', author.id);
         break;
       case "withdraw":
         if (words.length < 3) {
@@ -323,7 +327,7 @@ implements Platform {
           await message.reply("The value for withdrawal must be greater than 0.");
           break;
         }
-        this.emit('Withdraw', author.id, amount, wAddress);
+        this.emit('Withdraw', 'discord', author.id, amount, wAddress);
         break;
       default:
         message.reply(
@@ -385,7 +389,9 @@ implements Platform {
             });
             break;
           }
-          this.emit('Give',
+          this.emit(
+            'Give',
+            'discord', 
             null,
             null,
             platformId,
@@ -397,17 +403,19 @@ implements Platform {
           );
           break;
         case "balance":
-          this.emit('Balance', platformId, interaction);
+          this.emit('Balance', 'discord', platformId, interaction);
           break;
         case "deposit":
-          this.emit('Deposit', platformId);
+          this.emit('Deposit', 'discord', platformId);
           await interaction.reply({
             content: `Please check your DMs for reply message.`,
             ephemeral: true
           });
           break;
         case "withdraw":
-          this.emit('Withdraw',
+          this.emit(
+            'Withdraw',
+            'discord',
             platformId,
             xpiAmount.toString(),
             options.getString("address")

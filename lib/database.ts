@@ -27,23 +27,9 @@ type Withdrawal = {
 
 export class Database {
   private prisma: PrismaClient;
-  private platform: string;
-  private platformTable: PlatformDatabaseTable;
 
-  constructor(platform: string) {
+  constructor() {
     this.prisma = new PrismaClient();
-    this.platform = platform.toLowerCase();
-    switch (platform) {
-      case 'Telegram':
-        this.platformTable = 'userTelegram';
-        break;
-      case 'Twitter':
-        this.platformTable = 'userTwitter';
-        break;
-      case 'Discord':
-        this.platformTable = 'userDiscord';
-        break;
-    }
   };
   connect = async () => await this.prisma.$connect();
   disconnect = async () => await this.prisma.$disconnect();
@@ -80,10 +66,12 @@ export class Database {
 
   /** Check db to ensure `userId` exists */
   isValidUser = async (
+    platform: string,
     platformId: string
   ): Promise<boolean> => {
+    const platformTable = this._toPlatformTable(platform);
     try {
-      const result = await this.prisma[this.platformTable].findFirst({
+      const result = await this.prisma[platformTable].findFirst({
         where: { id: platformId }
       });
       return result?.userId ? true : false;
@@ -164,10 +152,12 @@ export class Database {
   };
   /** Get the `accountId` for the specified `platformId` */
   getAccountId = async (
+    platform: string,
     platformId: string
   ) => {
+    const platformTable = this._toPlatformTable(platform);
     try {
-      const result = await this.prisma[this.platformTable].findFirst({
+      const result = await this.prisma[platformTable].findFirst({
         where: { id: platformId },
         select: { user: { 
           select: { accountId: true }
@@ -180,10 +170,12 @@ export class Database {
   };
   /** Get the `userId` for the specified `platformId` */
   getUserId = async (
+    platform: string,
     platformId: string
   ) => {
+    const platformTable = this._toPlatformTable(platform);
     try {
-      const result = await this.prisma[this.platformTable].findFirst({
+      const result = await this.prisma[platformTable].findFirst({
         where: { id: platformId },
         select: { userId: true }
       });
@@ -231,7 +223,7 @@ export class Database {
         }}
       };
       if (platform && platformId) {
-        account.users.create[this.platform] = { create: {
+        account.users.create[platform.toLowerCase()] = { create: {
           id: platformId
         }};
       }
@@ -328,6 +320,19 @@ export class Database {
       return await this.prisma.$transaction(inserts);
     } catch (e: any) {
       throw new Error(`_execTransaction: ${e.message}`);
+    }
+  };
+
+  private _toPlatformTable = (
+    platform: string
+  ): PlatformDatabaseTable => {
+    switch (platform) {
+      case 'telegram':
+        return `userTelegram`;
+      case 'twitter':
+        return 'userTwitter';
+      case 'discord':
+        return 'userDiscord';
     }
   };
 };
