@@ -49,7 +49,6 @@ export default class LotusBot {
       this.bots[platform].on('Deposit', this._handleDepositCommand);
       this.bots[platform].on('Give', this._handleGiveCommand);
       this.bots[platform].on('Withdraw', this._handleWithdrawCommand);
-      this.bots[platform].on('Link', this._handleLinkCommand);
     }
     this._log(MAIN, "service initialized successfully");
   };
