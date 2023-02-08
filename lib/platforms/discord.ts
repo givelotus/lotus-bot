@@ -370,6 +370,13 @@ implements Platform {
             });
             break;
           }
+          // can't send to self
+          if (platformId == toId) {
+            await interaction.reply({
+              content: BOT.MESSAGE.ERR_MUST_GIVE_TO_OTHER_USER
+            });
+            break;
+          }
           if (this.clientId == to.id) {
             await interaction.reply({
               content: format(BOT.MESSAGE.ERR_GIVE_TO_BOT),
