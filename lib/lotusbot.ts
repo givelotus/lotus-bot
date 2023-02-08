@@ -102,7 +102,7 @@ export default class LotusBot {
     this._log(MAIN, `reconciling deposits with UTXO set`);
     try {
       const utxos = this.wallets.getUtxos();
-      const deposits = await this.prisma.getUserDeposits();
+      const deposits = await this.prisma.getDeposits();
       const newDeposits = utxos.filter(u => {
         return deposits.findIndex(d => u.txid == d.txid) < 0;
       });

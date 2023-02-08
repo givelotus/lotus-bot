@@ -99,12 +99,9 @@ export class Database {
     }
   };
   /** Get Deposits for all users of all platforms */
-  getUserDeposits = async () => {
+  getDeposits = async () => {
     try {
-      const [ result ] = await this.prisma.user.findMany({
-        select: { deposits: true }
-      });
-      return result?.deposits;
+      return await this.prisma.deposit.findMany();
     } catch (e: any) {
       throw new Error(`getUserDeposits: ${e.message}`);
     }
