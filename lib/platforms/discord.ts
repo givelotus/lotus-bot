@@ -373,7 +373,8 @@ implements Platform {
           // can't send to self
           if (platformId == toId) {
             await interaction.reply({
-              content: BOT.MESSAGE.ERR_MUST_GIVE_TO_OTHER_USER
+              content: BOT.MESSAGE.ERR_MUST_GIVE_TO_OTHER_USER,
+              ephemeral: true
             });
             break;
           }
