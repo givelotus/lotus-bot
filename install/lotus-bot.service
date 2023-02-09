@@ -1,5 +1,5 @@
 [Unit]
-Description=Lotus Bot Service - Telegram platform
+Description=Bot for Multiple Social Networking Platforms for Giving/Receiving Lotus to/from other Users
 After=network.target
 
 [Service]
@@ -7,10 +7,10 @@ Type=exec
 ExitType=cgroup
 User=lotus-bot
 Group=%G
-PIDFile=/opt/lotus-bot/tmp/telegram.pid
+PIDFile=/opt/lotus-bot/tmp/lotus-bot.pid
 WorkingDirectory=/opt/lotus-bot/
 ExecStartPre=/opt/lotus-bot/node_modules/typescript/bin/tsc
-ExecStart=node index.js Telegram
+ExecStart=node index.js
 ExecStop=/usr/bin/kill -SIGINT $MAINPID
 Restart=on-failure
 RestartSec=3

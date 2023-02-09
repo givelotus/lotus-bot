@@ -19,6 +19,7 @@ import { WALLET } from '../util/constants';
 import { EventEmitter } from 'node:stream';
 
 type WalletKey = {
+  accountId: string;
   signingKey: PrivateKey;
   address: Address;
   script: Script;
@@ -26,6 +27,9 @@ type WalletKey = {
   scriptType: ScriptType;
   utxos: ParsedUtxo[];
 };
+
+/** `string` = `userId` */
+type AccountKey = [string, WalletKey];
 
 type ParsedUtxo = {
   txid: string;
@@ -38,7 +42,7 @@ export type AccountUtxo = ParsedUtxo & {
 }
 
 export declare interface WalletManager {
-  on(event: 'AddedToMempool', callback: (utxo: ParsedUtxo) => void): this;
+  on(event: 'AddedToMempool', callback: (utxo: AccountUtxo) => void): this;
 };
 
 export class WalletManager extends EventEmitter {
@@ -47,7 +51,6 @@ export class WalletManager extends EventEmitter {
   private chronikWs: WsEndpoint;
   // Wallet properties
   private keys: { [userId: string]: WalletKey } = {};
-  private utxos: ParsedUtxo[] = [];
   /** Provides all off- and on-chain wallet functionality */
   constructor() {
     super();
@@ -62,6 +65,7 @@ export class WalletManager extends EventEmitter {
    */
   init = async (
     users: Array<{
+      accountId: string,
       userId: string,
       hdPrivKey: HDPrivateKey
     }>
@@ -93,36 +97,29 @@ export class WalletManager extends EventEmitter {
     }
     return utxos;
   };
-  /** Get the UTXO balance for the provided `userId` */
-  getUserBalance = async (
-    userId: string
+  /** Get the UTXO balance for the provided `accountId` */
+  getAccountBalance = async (
+    accountId: string
   ) => {
-    // Reconcile sender UTXOs before generating and broadcasting tx
-    await this._reconcileUtxos(userId);
-    const utxos = this.keys[userId].utxos;
     const sats = { total: 0 };
-    utxos.forEach(utxo => sats.total += Number(utxo.value));
+    const keys = this._getKeys(accountId);
+    for (const [ userId ] of keys) {
+      // Validate the utxos of this WalletKey; discards invalid utxos
+      await this._reconcileUtxos(userId);
+      const utxos = this.keys[userId].utxos;
+      utxos.forEach(utxo => sats.total += Number(utxo.value));
+    }
     return sats.total;
   };
   /** Return single `WalletKey` of `userId` */
   getKey = (userId: string): WalletKey | undefined => this.keys[userId];
   /** Return the XAddress of the `WalletKey` of `userId` */
   getXAddress = (userId: string) => this.keys[userId].address.toXAddress();
-  /** Check if given outpoint(s) have been confirmed by network */
-  checkUtxosConfirmed = async (
-    outpoints: OutPoint[]
-  ) => {
-    try {
-      const result = await this.chronik.validateUtxos(outpoints);
-      return result.map((state, idx) => {
-        return {
-          txid: outpoints[idx].txid,
-          isConfirmed: state.isConfirmed
-        };
-      })
-    } catch (e: any) {
-      throw new Error(`isUtxoConfirmed: ${e.message}`);
-    }
+  getXAddresses = (accountId: string) => {
+    const keys = this._getKeys(accountId);
+    const addresses: string[] = [];
+    keys.forEach(([, key]) => addresses.push(key.address.toXAddress()));
+    return addresses;
   };
   /** 
    * - load wallet signingKey, script, address
@@ -130,9 +127,11 @@ export class WalletManager extends EventEmitter {
    * - subscribe to Chronik WS
    */
   loadKey = async ({
+    accountId,
     userId,
     hdPrivKey
   }: {
+    accountId: string,
     userId: string,
     hdPrivKey: HDPrivateKey
   }) => {
@@ -142,9 +141,10 @@ export class WalletManager extends EventEmitter {
       const script = this._getScriptFromAddress(address);
       const scriptType = this._chronikScriptType(address);
       const scriptHex = script.getPublicKeyHash().toString('hex');
-      const utxos = await this._getUtxos(scriptType, scriptHex);
+      const utxos = await this._fetchUtxos(scriptType, scriptHex);
       const parsedUtxos = utxos?.map(utxo => this._toParsedUtxo(utxo));
       this.keys[userId] = {
+        accountId,
         signingKey,
         address,
         script,
@@ -157,22 +157,26 @@ export class WalletManager extends EventEmitter {
       throw new Error(`loadKey: ${userId}: ${e.message}`);
     }
   };
+  /** Update the WalletKey of `userId` with provided `accountId` */
+  updateKey = (
+    accountId: string,
+    userId: string
+  ) => this.keys[userId].accountId = accountId;
   /** Process Give/Withdraw tx for the provided `fromUserId` */
   genTx = async ({
-    fromUserId,
+    fromAccountId,
     toUserId,
     outAddress,
     sats
   }: {
-    fromUserId: string,
+    fromAccountId: string,
     toUserId?: string,
     outAddress?: string,
     sats: number
   }) => {
     try {
       return this._genTx(
-        this.keys[fromUserId],
-        this.keys[fromUserId].utxos,
+        this._getKeys(fromAccountId),
         outAddress || this.keys[toUserId].address,
         sats
       );
@@ -182,54 +186,63 @@ export class WalletManager extends EventEmitter {
   };
   /** Broadcast the provided tx for the provided userId */
   broadcastTx = async (
-    userId: string,
-    tx: Transaction,
-    usedUtxoCount: number
+    tx: Transaction
   ) => {
     try {
       const txBuf = tx.toBuffer();
       const broadcasted = await this.chronik.broadcastTx(txBuf);
-      this.keys[userId].utxos.splice(0, usedUtxoCount);
       return broadcasted.txid;
     } catch (e: any) {
       throw new Error(`_broadcastTx: ${e.message}`);
     }
   };
-  /** Generate transaction for `WalletKey` using provided `utxos` */
+  /** Get all `[ userId, WalletKey ]` of the provided `accountId` */
+  private _getKeys = (
+    accountId: string
+  ): AccountKey[] =>
+    Object.entries(this.keys)
+      .filter(([ , key ]) => key.accountId == accountId);
+  /** Generate transaction for the provided WalletKeys */
   private _genTx = (
-    key: WalletKey,
-    utxos: ParsedUtxo[],
+    keys: AccountKey[],
     outAddress: string | Address,
     outSats: number
   ) => {
     const tx = new Transaction();
-    let usedUtxoCount: number = 0;
+    const signingKeys: PrivateKey[] = [];
     try {
-      for (const utxo of utxos) {
-        tx.addInput(this._toPKHInput(utxo, key.script));
-        usedUtxoCount++;
-        if (tx.inputAmount > outSats) {
-          break;
+      for (const [ , key ] of keys) {
+        signingKeys.push(key.signingKey);
+        for (const utxo of key.utxos) {
+          tx.addInput(this._toPKHInput(utxo, key.script));
+          if (tx.inputAmount > outSats) {
+            break;
+          }
         }
-      }
-      const outScript = this._getScriptFromAddress(outAddress);
-      tx.addOutput(this._toOutput(outSats, outScript));
-      // Adjust output amount to accommodate fees if no extra XPI available
-      if (tx.inputAmount == outSats) {
-        const sats = outSats - (tx._estimateSize() * config.tx.feeRate);
-        tx.removeOutput(0);
-        tx.addOutput(this._toOutput(sats, outScript));
-      } else {
-        tx.feePerByte(config.tx.feeRate);
-        tx.change(key.address);
-      }
-      tx.sign(key.signingKey);
-      const verified = tx.verify();
-      switch (typeof verified) {
-        case 'boolean':
-          return { tx, usedUtxoCount };
-        case 'string':
-          throw new Error(verified);
+        // May need to continue adding utxos from other keys
+        if (tx.inputAmount <= outSats) {
+          continue;
+        }
+        const outScript = this._getScriptFromAddress(outAddress);
+        tx.addOutput(this._toOutput(outSats, outScript));
+        // Adjust output amount to accommodate fees if no extra XPI available
+        if (tx.inputAmount == outSats) {
+          const sats = outSats - (tx._estimateSize() * config.tx.feeRate);
+          tx.removeOutput(0);
+          tx.addOutput(this._toOutput(sats, outScript));
+        } else {
+          tx.feePerByte(config.tx.feeRate);
+          // Set current key's address as change address
+          tx.change(key.address);
+        }
+        tx.sign(signingKeys);
+        const verified = tx.verify();
+        switch (typeof verified) {
+          case 'boolean':
+            return tx;
+          case 'string':
+            throw new Error(verified);
+        }
       }
     } catch (e: any) {
       throw new Error(`_genTx: ${e.message}`);
@@ -248,7 +261,7 @@ export class WalletManager extends EventEmitter {
     });
   }
   /** Fetch UTXOs from Chronik API for provided `WalletKey` */
-  private _getUtxos = async (
+  private _fetchUtxos = async (
     scriptType: ScriptType,
     scriptHex: string,
   ): Promise<Utxo[]> => {
@@ -257,7 +270,7 @@ export class WalletManager extends EventEmitter {
       const [ result ] = await scriptEndpoint.utxos();
       return result?.utxos || [];
     } catch (e: any) {
-      throw new Error(`_getUtxos: ${e.message}`);
+      throw new Error(`_fetchUtxos: ${e.message}`);
     }
   };
   /** Remove spent and otherwise invalid UTXOs from user's `WalletKey` */

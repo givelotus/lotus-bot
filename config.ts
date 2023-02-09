@@ -2,9 +2,9 @@ import dotenv from 'dotenv';
 
 type ParsedConfig = {
   apiKeys: {
-    Telegram: string,
-    Twitter: string,
-    Discord: string
+    telegram: string,
+    twitter: string,
+    discord: string
   },
   discord: {
     clientId: string,
@@ -32,9 +32,9 @@ class Config {
   private parseConfig = (): ParsedConfig => {
     return {
       apiKeys: {
-        Telegram: process.env.APIKEY_TELEGRAM,
-        Twitter: process.env.APIKEY_TWITTER,
-        Discord: process.env.APIKEY_DISCORD
+        telegram: process.env.APIKEY_TELEGRAM,
+        twitter: process.env.APIKEY_TWITTER,
+        discord: process.env.APIKEY_DISCORD
       },
       discord: {
         clientId:process.env.CLIENTID_DISCORD,

@@ -27,23 +27,9 @@ type Withdrawal = {
 
 export class Database {
   private prisma: PrismaClient;
-  private platform: string;
-  private platformTable: PlatformDatabaseTable;
 
-  constructor(platform: string) {
+  constructor() {
     this.prisma = new PrismaClient();
-    this.platform = platform.toLowerCase();
-    switch (platform) {
-      case 'Telegram':
-        this.platformTable = 'userTelegram';
-        break;
-      case 'Twitter':
-        this.platformTable = 'userTwitter';
-        break;
-      case 'Discord':
-        this.platformTable = 'userDiscord';
-        break;
-    }
   };
   connect = async () => await this.prisma.$connect();
   disconnect = async () => await this.prisma.$disconnect();
@@ -80,10 +66,12 @@ export class Database {
 
   /** Check db to ensure `userId` exists */
   isValidUser = async (
+    platform: string,
     platformId: string
   ): Promise<boolean> => {
+    const platformTable = this._toPlatformTable(platform);
     try {
-      const result = await this.prisma[this.platformTable].findFirst({
+      const result = await this.prisma[platformTable].findFirst({
         where: { id: platformId }
       });
       return result?.userId ? true : false;
@@ -91,83 +79,62 @@ export class Database {
       throw new Error(`isValidUser: ${e.message}`);
     }
   };
-  /** Get WalletKeys for all platform users */
-  getPlatformWalletKeys = async () => {
+  /** Get WalletKeys for all users of all platforms */
+  getUserWalletKeys = async () => {
     try {
-      const result = await this.prisma[this.platformTable].findMany({
-        select: { user: {
-          select: { id: true, key: {
-            select: { hdPrivKey: true }
-          }}
+      const result = await this.prisma.user.findMany({
+        select: { id: true, accountId: true, key: {
+          select: { hdPrivKey: true }
         }}
       });
-      return result.map(({ user }) => {
+      return result.map(user => {
         return {
+          accountId: user.accountId,
           userId: user.id,
           hdPrivKey: user.key.hdPrivKey
-        };
+        }
       });
     } catch (e: any) {
-      throw new Error(`getAllWalletKeys: ${e.message}`);
+      throw new Error(`getUserWalletKeys: ${e.message}`);
     }
   };
-  /** Get all deposits or all unconfirmed deposits of platform users */
-  getPlatformDeposits = async () => {
+  /** Get Deposits for all users of all platforms */
+  getDeposits = async () => {
     try {
-      const result = await this.prisma[this.platformTable].findMany({
-        select: { user: {
-          select: { deposits: true }
-        }}
-      });
-      const deposits: Deposit[] = [];
-      for (const { user } of result) {
-        deposits.push(...user.deposits);
-      }
-      return deposits;
+      return await this.prisma.deposit.findMany();
     } catch (e: any) {
-      throw new Error(`getAllDeposits: ${e.message}`);
+      throw new Error(`getUserDeposits: ${e.message}`);
     }
   };
-  /**
-   * Get total account balance for the `platformId`  
-   * Total balance includes all associated users of the account
-   */
-  getAccountBalance = async (
+  /** Get `userId` and `accountId` for the specified `platformId` */
+  getIds = async (
+    platform: string,
     platformId: string
   ) => {
+    const platformTable = this._toPlatformTable(platform);
     try {
-      const sats = { total: 0 };
-      const accountId = await this.getAccountId(platformId);
-      const { users } = await this.prisma.account.findFirst({
-        where: { id: accountId },
-        select: { users: { 
-          select: {
-            deposits: {
-              select: { value: true }
-            },
-            withdrawals: { select: { value: true }},
-            gives: { select: { value: true }},
-            receives: { select: { value: true }}
-          }
+      const result = await this.prisma[platformTable].findFirst({
+        where: { id: platformId },
+        select: { user: {
+          select: { id: true, accountId: true }
         }}
       });
-      for (const { deposits, withdrawals, gives, receives } of users) {
-        deposits.forEach(d => sats.total += Number(d.value));
-        receives.forEach(r => sats.total += Number(r.value));
-        withdrawals.forEach(w => sats.total -= Number(w.value));
-        gives.forEach(g => sats.total -= Number(g.value));
-      }
-      return sats.total;
+      return {
+        accountId: result.user.accountId,
+        userId: result.user.id,
+      };
     } catch (e: any) {
-      throw new Error(`getAccountBalance: ${e.message}`);
+      throw new Error(`getIds: ${e.message}`);
     }
   };
   /** Get the `accountId` for the specified `platformId` */
   getAccountId = async (
+    platform: string,
     platformId: string
   ) => {
+    const platformTable = this._toPlatformTable(platform);
     try {
-      const result = await this.prisma[this.platformTable].findFirst({
+      const result = await this.prisma[platformTable].findFirst({
         where: { id: platformId },
         select: { user: { 
           select: { accountId: true }
@@ -180,10 +147,12 @@ export class Database {
   };
   /** Get the `userId` for the specified `platformId` */
   getUserId = async (
+    platform: string,
     platformId: string
   ) => {
+    const platformTable = this._toPlatformTable(platform);
     try {
-      const result = await this.prisma[this.platformTable].findFirst({
+      const result = await this.prisma[platformTable].findFirst({
         where: { id: platformId },
         select: { userId: true }
       });
@@ -231,7 +200,7 @@ export class Database {
         }}
       };
       if (platform && platformId) {
-        account.users.create[this.platform] = { create: {
+        account.users.create[platform.toLowerCase()] = { create: {
           id: platformId
         }};
       }
@@ -328,6 +297,19 @@ export class Database {
       return await this.prisma.$transaction(inserts);
     } catch (e: any) {
       throw new Error(`_execTransaction: ${e.message}`);
+    }
+  };
+
+  private _toPlatformTable = (
+    platform: string
+  ): PlatformDatabaseTable => {
+    switch (platform) {
+      case 'telegram':
+        return `userTelegram`;
+      case 'twitter':
+        return 'userTwitter';
+      case 'discord':
+        return 'userDiscord';
     }
   };
 };
