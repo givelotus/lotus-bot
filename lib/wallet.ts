@@ -186,13 +186,11 @@ export class WalletManager extends EventEmitter {
   };
   /** Broadcast the provided tx for the provided userId */
   broadcastTx = async (
-    tx: Transaction,
-    usedUtxos: AccountUtxo[]
+    tx: Transaction
   ) => {
     try {
       const txBuf = tx.toBuffer();
       const broadcasted = await this.chronik.broadcastTx(txBuf);
-      usedUtxos.forEach(utxo => this._removeUtxo(utxo));
       return broadcasted.txid;
     } catch (e: any) {
       throw new Error(`_broadcastTx: ${e.message}`);
@@ -212,13 +210,11 @@ export class WalletManager extends EventEmitter {
   ) => {
     const tx = new Transaction();
     const signingKeys: PrivateKey[] = [];
-    const usedUtxos: AccountUtxo[] = [];
     try {
-      for (const [ userId, key ] of keys) {
+      for (const [ , key ] of keys) {
         signingKeys.push(key.signingKey);
         for (const utxo of key.utxos) {
           tx.addInput(this._toPKHInput(utxo, key.script));
-          usedUtxos.push({ ...utxo, userId });
           if (tx.inputAmount > outSats) {
             break;
           }
@@ -243,7 +239,7 @@ export class WalletManager extends EventEmitter {
         const verified = tx.verify();
         switch (typeof verified) {
           case 'boolean':
-            return { tx, usedUtxos };
+            return tx;
           case 'string':
             throw new Error(verified);
         }
@@ -297,18 +293,6 @@ export class WalletManager extends EventEmitter {
       }
     } catch (e: any) {
       throw new Error(`_consolidateUtxos: ${e.message}`);
-    }
-  };
-  /** Remove the provided `utxo` from the WalletKey's utxo set */
-  private _removeUtxo = (
-    utxo: AccountUtxo
-  ) => {
-    const { userId, txid, outIdx } = utxo;
-    const idx = this.keys[userId].utxos.findIndex(utxo => {
-      return utxo.txid == txid && utxo.outIdx == outIdx;
-    });
-    if (idx >= 0) {
-      this.keys[userId].utxos.splice(idx, 1);
     }
   };
   /**

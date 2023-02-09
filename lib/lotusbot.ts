@@ -237,7 +237,7 @@ export default class LotusBot {
         ? await this._saveAccount(platform, toId)
         : await this.prisma.getIds(platform, toId);
       // Give successful; broadcast tx and save to db
-      const { tx, usedUtxos } = await this.wallets.genTx({
+      const tx = await this.wallets.genTx({
         fromAccountId,
         toUserId,
         sats
@@ -254,7 +254,7 @@ export default class LotusBot {
       this._log(DB, msg + `saved to db: ` + tx.txid);
       // try to broadcast the give tx
       try {
-        await this.wallets.broadcastTx(tx, usedUtxos);
+        await this.wallets.broadcastTx(tx);
       } catch (e: any) {
         this._log(platform, msg + `broadcast failed: ${e.message}`);
         await this.prisma.deleteGive(tx.txid);
@@ -357,7 +357,7 @@ export default class LotusBot {
         );
       }
       // Generate transaction and get num of utxos used in the tx
-      const { tx, usedUtxos } = await this.wallets.genTx({
+      const tx = await this.wallets.genTx({
         fromAccountId: accountId,
         outAddress,
         sats
@@ -373,7 +373,7 @@ export default class LotusBot {
       // try to broadcast the withdrawal tx
       try {
         // Broadcast the withdrawal to network
-        const txid = await this.wallets.broadcastTx(tx, usedUtxos);
+        const txid = await this.wallets.broadcastTx(tx);
         this._log(WALLET, msg + `accepted: ${txid}`);
       } catch (e: any) {
         this._log(
