@@ -38,6 +38,11 @@ export declare interface Telegram {
     wAmount: number,
     wAddress: string,
   ) => void): this;
+  on(event: 'Link', callback: (
+    platform: string,
+    platformId: string,
+    secret?: string
+  ) => void): this;
 }
 
 const REPLIES_PER_SECOND = 20;
@@ -58,6 +63,15 @@ const parseWithdraw = (
   return index >= 0
     ? parts.slice(index + 1, index + 3)
     : null;
+};
+const parseLink = (
+  text: string
+) => {
+  const parts = split(text);
+  const index = parts.findIndex(part => part.toLowerCase() == '/link');
+  return index >= 0
+    ? parts.slice(index + 1, index + 2).pop()
+    : undefined;
 };
 const escape = (
   text: string
@@ -80,6 +94,7 @@ implements Platform {
     this.bot.command('balance', this._handleDirectMessage);
     this.bot.command('deposit', this._handleDirectMessage);
     this.bot.command('withdraw', this._handleDirectMessage);
+    this.bot.command('link', this._handleDirectMessage);
     this.bot.start(this._handleDirectMessage);
   };
   launch = async () => {
@@ -222,7 +237,34 @@ implements Platform {
     } catch (e: any) {
       throw new Error(`sendWithdrawReply: ${e.message}`);
     }
-    
+  };
+
+  sendLinkReply = async (
+    platformId: string,
+    { error, secret }: { error?: string, secret?: string },
+  ) => {
+    try {
+      await setTimeout(this._calcReplyDelay());
+      switch (typeof secret) {
+        case 'string':
+          const msg = format(BOT.MESSAGE.LINK, secret);
+          await this.bot.telegram.sendMessage(platformId, msg,
+            { parse_mode: 'Markdown' }
+          );
+          break;
+        case 'undefined':
+          await this.bot.telegram.sendMessage(
+            platformId,
+            error
+              ? format(BOT.MESSAGE.LINK_FAIL, error)
+              : BOT.MESSAGE.LINK_OK
+          );
+          break;
+      }
+      this.lastReplyTime = Date.now();
+    } catch (e: any) {
+      throw new Error(`sendLinkReply: ${e.message}`);
+    }
   };
 
   private _handleDirectMessage = async (
@@ -264,6 +306,9 @@ implements Platform {
         );
       case '/balance':
         return this.emit('Balance', 'telegram', platformId);
+      case '/link':
+        const secret = parseLink(messageText);
+        return this.emit('Link', 'telegram', platformId, secret);
       case '/start':
         reply.msg = `Welcome to my home! ` +
         `I can help you deposit Lotus and give Lotus to other users.\r\n\r\n` +

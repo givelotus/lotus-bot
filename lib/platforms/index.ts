@@ -60,4 +60,9 @@ export interface Platform {
     },
     message?: Message
   ) => Promise<void>;
+  sendLinkReply: (
+    platformId: string,
+    { error, secret }: { error?: string, secret?: string },
+    message?: Message
+  ) => Promise<void>;
 };
