@@ -418,15 +418,15 @@ export default class LotusBot {
     const msg = `${platformId}: link: ${secret ? '<redacted>' : 'initiate'}: `;
     let error: string;
     try {
+      const isValidUser = await this.prisma.isValidUser(platform, platformId);
+      const { accountId, userId } = !isValidUser
+        ? await this._saveAccount(platform, platformId)
+        : await this.prisma.getIds(platform, platformId);
       switch (typeof secret) {
         /** User provided secret to link account */
         case 'string':
           // Get the accountId associated with the user with the secret
           const linkAccountId = await this.prisma.getAccountIdFromSecret(secret);
-          const {
-            accountId,
-            userId
-          } = await this.prisma.getIds(platform, platformId);
           // sanity checks
           if (!linkAccountId) {
             error = 'invalid secret provided';
