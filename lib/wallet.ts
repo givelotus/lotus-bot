@@ -366,7 +366,8 @@ export class WalletManager extends EventEmitter {
             break;
           }
           this.keys[userId].utxos.push(parsedUtxo);
-          return this.emit('AddedToMempool', { ...parsedUtxo, userId });
+          this.emit('AddedToMempool', { ...parsedUtxo, userId });
+          break;
         }
       }
     } catch (e: any) {
