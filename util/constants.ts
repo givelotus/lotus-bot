@@ -32,6 +32,14 @@ export const BOT = {
       `Your withdrawal of %s XPI was successful!\r\n\r\n` +
       `[View tx on the Explorer](%s)`,
     WITHDRAW_FAIL: `There was an error processing your withdrawal: %s`,
+    LINK:
+      `I will link two of your accounts together so that your Lotus ` +
+      `balances are combined into one.\r\n\r\n` +
+      `Your secret code is: \`%s\`\r\n\r\n` +
+      `Using your other account, send me this secret code with the "link" ` +
+      `command and I will link your accounts together.`,
+    LINK_OK: `Your accounts have now been linked! `,
+    LINK_FAIL: `There was an error linking your account: %s`,
   },
 };
 

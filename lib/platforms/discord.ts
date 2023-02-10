@@ -21,7 +21,7 @@ import config from '../../config';
 const primaryColor: ColorResolvable = 0xa02fe4;
 const secondaryColor: ColorResolvable = 0xf0409b;
 
-export type DiscordMessage = ChatInputCommandInteraction;
+export type DiscordMessage = ChatInputCommandInteraction | Message;
 
 type Command = {
   name: string,
@@ -60,6 +60,11 @@ export declare interface Discord {
     platformId: string,
     wAmount: number,
     wAddress: string,
+  ) => void): this;
+  on(event: 'Link', callback: (
+    platform: string,
+    platformId: string,
+    secret?: string
   ) => void): this;
 }
 export class Discord 
@@ -138,6 +143,18 @@ implements Platform {
             required: true
           }
         ]
+      },
+      {
+        name: 'link',
+        description: 'Link your account to another Discord/platform account',
+        options: [
+          {
+            type: 3,
+            name: 'secret',
+            description: 'Optional - Secret provided from another account',
+            required: false
+          }
+        ],
       },
       {
         name: 'ping',
@@ -279,6 +296,33 @@ implements Platform {
       throw new Error(`sendWithdrawReply: ${e.message}`);
     }
   };
+  sendLinkReply = async (
+    platformId: string,
+    { error, secret }: { error?: string, secret?: string },
+    interaction: DiscordMessage
+  ) => {
+    try {
+      switch (typeof secret) {
+        case 'string':
+          const msg = format(BOT.MESSAGE.LINK, secret);
+          await interaction.reply({
+            content: msg,
+            ephemeral: true
+          });
+          break;
+        case 'undefined':
+          await interaction.reply({
+            content: error
+              ? format(BOT.MESSAGE.LINK_FAIL, error)
+              : BOT.MESSAGE.LINK_OK,
+            ephemeral: true
+          });
+          break;
+      }
+    } catch (e: any) {
+      throw new Error(`sendLinkReply: ${e.message}`);
+    }
+  };
   private _registerCommands = async (guildId: string) => {
     try {
       await this.client.rest.put(
@@ -307,6 +351,7 @@ implements Platform {
     const words = content.trim().split(" ");
     const command = words[0];
     const amount = Number(words[1]);
+    const secret = words[1];
     const wAddress = words[2] || null;
     switch (command) {
       case "balance":
@@ -329,13 +374,20 @@ implements Platform {
         }
         this.emit('Withdraw', 'discord', author.id, amount, wAddress);
         break;
+      case 'link':
+        this.emit('Link', 'discord', author.id, secret, message);
+        break;
       default:
         message.reply(
           `You can only use the following verbs in my DMs:\r\n\r\n` +
           `**balance** - Get your current balance in the bot.\r\n` +
           `**deposit** - Get the address needed to deposit XPI.\r\n` +
-          `**Withdraw** - Withdraw XPI to an external wallet.\r\n\r\n` +
-          "Withdraw command syntax: `withdraw <amount> <external_address>`"
+          `**withdraw** - Withdraw XPI to an external wallet.\r\n` +
+          '**link** - Link to another account/platform\r\n\r\n' +
+          "withdraw command syntax: `withdraw <amount> <external_address>`\r\n" +
+          "link command syntax:\r\n" +
+          "```link <secret code> - Link using code from other acocunt\r\n" +
+          "link - Get your code for linking account on another platform```"
         );
         break;
     }
@@ -424,6 +476,10 @@ implements Platform {
             content: `Please check your DMs for reply message.`,
             ephemeral: true
           });
+          break;
+        case 'link':
+          const secret = options.getString('secret') || undefined;
+          this.emit('Link', 'discord', platformId, secret, interaction);
           break;
         case "ping":
           await interaction.reply({ content: `Pong! 🏓` });

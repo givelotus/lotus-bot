@@ -49,6 +49,7 @@ export default class LotusBot {
       this.bots[platform].on('Deposit', this._handleDepositCommand);
       this.bots[platform].on('Give', this._handleGiveCommand);
       this.bots[platform].on('Withdraw', this._handleWithdrawCommand);
+      this.bots[platform].on('Link', this._handleLinkCommand);
     }
     this._log(MAIN, "service initialized successfully");
   };
@@ -404,6 +405,82 @@ export default class LotusBot {
       }
     } catch (e: any) {
       throw new Error(`_handleWithdrawCommand: ${e.message}`);
+    }
+  };
+
+  private _handleLinkCommand = async (
+    platform: string,
+    platformId: string,
+    secret: string | undefined,
+    message?: Platforms.Message
+  ) => {
+    this._log(platform, `${platformId}: link command received`);
+    const msg = `${platformId}: link: ${secret ? '<redacted>' : 'initiate'}: `;
+    let error: string;
+    try {
+      const isValidUser = await this.prisma.isValidUser(platform, platformId);
+      const { accountId, userId } = !isValidUser
+        ? await this._saveAccount(platform, platformId)
+        : await this.prisma.getIds(platform, platformId);
+      switch (typeof secret) {
+        /** User provided secret to link account */
+        case 'string':
+          // Get the accountId associated with the user with the secret
+          const linkAccountId = await this.prisma.getAccountIdFromSecret(secret);
+          // sanity checks
+          if (!linkAccountId) {
+            error = 'invalid secret provided';
+          } else if (linkAccountId == accountId) {
+            error = 'own secret provided or already linked';
+          }
+          if (error) {
+            this._log(platform, msg + error);
+            try {
+              return await this.bots[platform].sendLinkReply(
+                platformId,
+                { error },
+                message
+              );
+            } catch (e: any) {
+              return this._logPlatformNotifyError(platform, msg, e.message);
+            }
+          }
+          // try to update the user's accountId
+          await this.prisma.updateUserAccountId(userId, linkAccountId);
+          this._log(
+            platform,
+            msg + `successfully linked to ${linkAccountId} accountId`
+          );
+          // update walletkey with new accountId
+          this.wallets.updateKey(linkAccountId, userId);
+          try {
+            return await this.bots[platform].sendLinkReply(
+              platformId,
+              { secret: undefined },
+              message
+            );
+          } catch (e: any) {
+            return this._logPlatformNotifyError(platform, msg, e.message);
+          }
+        /** User wants secret to link account */
+        case 'undefined':
+          const userSecret = await this.prisma.getUserSecret(
+            platform,
+            platformId
+          );
+          // try to send secret to the platform user
+          try {
+            return await this.bots[platform].sendLinkReply(
+              platformId,
+              { secret: userSecret },
+              message
+            );
+          } catch (e: any) {
+            return this._logPlatformNotifyError(platform, msg, e.message);
+          }
+      }
+    } catch (e: any) {
+      throw new Error(`_handleLinkCommand: ${e.message}`);
     }
   };
   

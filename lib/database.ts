@@ -145,6 +145,36 @@ export class Database {
       throw new Error(`getAccountId: ${e.message}`);
     }
   };
+  getAccountIdFromSecret = async (
+    secret: string
+  ) => {
+    try {
+      const result = await this.prisma.user.findFirst({
+        where: { secret },
+        select: { accountId: true }
+      });
+      return result?.accountId;
+    } catch (e: any) {
+
+    }
+  };
+  getUserSecret = async (
+    platform: string,
+    platformId: string
+  ) => {
+    const platformTable = this._toPlatformTable(platform);
+    try {
+      const result = await this.prisma[platformTable].findFirst({
+        where: { id: platformId },
+        select: { user: {
+          select: { secret: true }
+        }}
+      });
+      return result.user.secret;
+    } catch (e: any) {
+      throw new Error(`getUserSecret: ${e.message}`);
+    }
+  };
   /** Get the `userId` for the specified `platformId` */
   getUserId = async (
     platform: string,
@@ -210,17 +240,14 @@ export class Database {
     }
   };
   /** For linking one user with another user by `accountId` */
-  updateUserAccountId = async ({
-    userId,
-    accountId
-  }: {
+  updateUserAccountId = async (
     userId: string,
     accountId: string
-  }) =>{
+  ) =>{
     try {
       return await this.prisma.user.update({
         where: { id: userId },
-        data: { accountId }
+        data: { accountId },
       });
     } catch (e: any) {
       throw new Error(`updateUserAccountId: ${e.message}`);
