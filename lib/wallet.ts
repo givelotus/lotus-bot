@@ -220,7 +220,7 @@ export class WalletManager extends EventEmitter {
           }
         }
         // May need to continue adding utxos from other keys
-        if (tx.inputAmount <= outSats) {
+        if (tx.inputAmount < outSats) {
           continue;
         }
         const outScript = this._getScriptFromAddress(outAddress);
