@@ -20,8 +20,40 @@ export interface Platform {
   /** Deactivate the bot */
   stop: () => Promise<void>;
   /** EventEmitter handlers */
-  on: (event: string, callback: (...params: any) => void) => this;
-  getBotId: () => string;
+  on(event: 'Balance', callback: (
+    platform: string,
+    platformId: string,
+    message?: DiscordMessage
+  ) => void): this;
+  on(event: 'Give', callback: (
+    platform: string,
+    chatId: string,
+    replyToMessageId: number,
+    fromId: string,
+    fromUsername: string,
+    toId: string,
+    toUsername: string,
+    value: string,
+    message?: DiscordMessage
+  ) => void): this;
+  on(event: 'Deposit', callback: (
+    platform: string,
+    platformId: string,
+    message?: DiscordMessage
+  ) => void): this;
+  on(event: 'Withdraw', callback: (
+    platform: string,
+    platformId: string,
+    wAmount: number,
+    wAddress: string,
+    message?: DiscordMessage
+  ) => void): this;
+  on(event: 'Link', callback: (
+    platform: string,
+    platformId: string,
+    secret: string | undefined,
+    message?: DiscordMessage
+  ) => void): this;
   sendBalanceReply: (
     platformId: string,
     balance: string,

@@ -13,38 +13,6 @@ import { Message } from "telegraf/typings/core/types/typegram";
 
 export type TelegramMessage = Context;
 
-export declare interface Telegram {
-  on(event: 'Balance', callback: (
-    platform: string,
-    platformId: string
-  ) => void): this;
-  on(event: 'Give', callback: (
-    platform: string,
-    chatId: string,
-    replyToMessageId: number,
-    fromId: string,
-    fromUsername: string,
-    toId: string,
-    toUsername: string,
-    value: string
-  ) => void): this;
-  on(event: 'Deposit', callback: (
-    platform: string,
-    platformId: string,
-  ) => void): this;
-  on(event: 'Withdraw', callback: (
-    platform: string,
-    platformId: string,
-    wAmount: number,
-    wAddress: string,
-  ) => void): this;
-  on(event: 'Link', callback: (
-    platform: string,
-    platformId: string,
-    secret?: string
-  ) => void): this;
-}
-
 const REPLIES_PER_SECOND = 20;
 const parseGive = (
   text: string

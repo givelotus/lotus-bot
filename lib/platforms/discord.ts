@@ -36,37 +36,6 @@ type CommandOption = {
   required: boolean
 };
 
-export declare interface Discord {
-  on(event: 'Balance', callback: (
-    platform: string,
-    platformId: string
-  ) => void): this;
-  on(event: 'Give', callback: (
-    platform: string,
-    chatId: string,
-    replyToMessageId: number,
-    fromId: string,
-    fromUsername: string,
-    toId: string,
-    toUsername: string,
-    value: string
-  ) => void): this;
-  on(event: 'Deposit', callback: (
-    platform: string,
-    platformId: string,
-  ) => void): this;
-  on(event: 'Withdraw', callback: (
-    platform: string,
-    platformId: string,
-    wAmount: number,
-    wAddress: string,
-  ) => void): this;
-  on(event: 'Link', callback: (
-    platform: string,
-    platformId: string,
-    secret?: string
-  ) => void): this;
-}
 export class Discord 
 extends EventEmitter
 implements Platform {
