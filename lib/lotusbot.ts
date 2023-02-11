@@ -1,4 +1,11 @@
-import * as Platforms from './platforms'
+import {
+  Discord,
+  Telegram,
+  Twitter,
+  PlatformName,
+  PlatformMessage,
+  Platform,
+} from './platforms'
 import * as Util from '../util';
 import config from '../config';
 import { TRANSACTION } from '../util/constants';
@@ -21,7 +28,7 @@ export default class LotusBot {
   private prisma: Database;
   private wallets: WalletManager;
   private bots: {
-    [platform in Platforms.Name]: Platforms.Platform
+    [platform in PlatformName]: Platform
   } = {
     telegram: undefined,
     twitter: undefined,
@@ -31,9 +38,9 @@ export default class LotusBot {
   constructor() {
     this.prisma = new Database();
     this.wallets = new WalletManager();
-    this.bots.telegram = new Platforms.Telegram();
-    this.bots.twitter = new Platforms.Twitter();
-    this.bots.discord = new Platforms.Discord();
+    this.bots.telegram = new Telegram();
+    this.bots.twitter = new Twitter();
+    this.bots.discord = new Discord();
   };
 
   init = async () => {
@@ -51,11 +58,12 @@ export default class LotusBot {
     // Set up event handlers once we are ready
     this.wallets.on('AddedToMempool', this._handleUtxoAddedToMempool);
     for (const platform of Object.keys(this.bots)) {
-      this.bots[platform].on('Balance', this._handleBalanceCommand);
-      this.bots[platform].on('Deposit', this._handleDepositCommand);
-      this.bots[platform].on('Give', this._handleGiveCommand);
-      this.bots[platform].on('Withdraw', this._handleWithdrawCommand);
-      this.bots[platform].on('Link', this._handleLinkCommand);
+      const name = platform as PlatformName;
+      this.bots[name].on('Balance', this._handleBalanceCommand);
+      this.bots[name].on('Deposit', this._handleDepositCommand);
+      this.bots[name].on('Give', this._handleGiveCommand);
+      this.bots[name].on('Withdraw', this._handleWithdrawCommand);
+      this.bots[name].on('Link', this._handleLinkCommand);
     }
     this._log(MAIN, "service initialized successfully");
   };
@@ -66,9 +74,10 @@ export default class LotusBot {
       if (!apiKey) {
         continue;
       }
+      const name = platform as PlatformName;
       try {
-        await this.bots[platform].setup(apiKey);
-        await this.bots[platform].launch();
+        await this.bots[name].setup(apiKey);
+        await this.bots[name].launch();
         this._log(platform, `initialized`);
       } catch (e: any) {
         throw new Error(`_initBot: ${e.message}`);
@@ -126,7 +135,7 @@ export default class LotusBot {
   ) => console.log(`${module.toUpperCase()}: ${message}`);
 
   private _logPlatformNotifyError = (
-    platform: string,
+    platform: PlatformName,
     msg: string,
     error: string
   ) => this._log(platform, `${msg} failed to notify user: ${error}`);
@@ -153,9 +162,9 @@ export default class LotusBot {
   };
 
   private _handleBalanceCommand = async (
-    platform: string,
+    platform: PlatformName,
     platformId: string,
-    message?: Platforms.Message
+    message?: PlatformMessage
   ) => {
     this._log(platform, `${platformId}: balance command received`);
     try {
@@ -181,9 +190,9 @@ export default class LotusBot {
   };
   /** Gather user's address and send back to user as reply to their message */
   private _handleDepositCommand = async (
-    platform: string,
+    platform: PlatformName,
     platformId: string,
-    message?: Platforms.Message
+    message?: PlatformMessage
   ) => {
     try {
       this._log(platform, `${platformId}: deposit command received`);
@@ -199,7 +208,7 @@ export default class LotusBot {
   };
 
   private _handleGiveCommand = async (
-    platform: string,
+    platform: PlatformName,
     chatId: string,
     replyToMessageId: number,
     fromId: string,
@@ -207,7 +216,7 @@ export default class LotusBot {
     toId: string,
     toUsername: string,
     value: string,
-    message?: Platforms.Message
+    message?: PlatformMessage
   ) => {
     const bot = this.bots[platform];
     try {
@@ -290,11 +299,11 @@ export default class LotusBot {
   };
 
   private _handleWithdrawCommand = async (
-    platform: string,
+    platform: PlatformName,
     platformId: string,
     outAmount: number,
     outAddress: string,
-    message?: Platforms.Message
+    message?: PlatformMessage
   ) => {
     const bot = this.bots[platform];
     try {
@@ -415,10 +424,10 @@ export default class LotusBot {
   };
 
   private _handleLinkCommand = async (
-    platform: string,
+    platform: PlatformName,
     platformId: string,
     secret: string | undefined,
-    message?: Platforms.Message
+    message?: PlatformMessage
   ) => {
     this._log(platform, `${platformId}: link command received`);
     const msg = `${platformId}: link: ${secret ? '<redacted>' : 'initiate'}: `;
@@ -496,7 +505,7 @@ export default class LotusBot {
    * - Return `userId` from saved account
    */
   private _saveAccount = async (
-    platform: string,
+    platform: PlatformName,
     platformId: string
   ) => {
     try {
@@ -546,7 +555,7 @@ export default class LotusBot {
         const balance = await this.wallets.getAccountBalance(accountId);
         // try to notify user of deposit received
         try {
-          await this.bots[platform].sendDepositReceived(
+          await this.bots[platform as PlatformName].sendDepositReceived(
             platformId,
             utxo.txid,
             Util.toLocaleXPI(utxo.value),

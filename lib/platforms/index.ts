@@ -3,9 +3,9 @@ import { Twitter, TwitterMessage } from './twitter';
 import { Discord, DiscordMessage } from './discord';
 
 export { Telegram, Twitter, Discord };
-export type Name = 'telegram' | 'twitter' | 'discord';
+export type PlatformName = 'telegram' | 'twitter' | 'discord';
 export type PlatformDatabaseTable = 'userTelegram' | 'userTwitter' | 'userDiscord';
-export type Message =
+export type PlatformMessage =
   | TelegramMessage
   | TwitterMessage
   | DiscordMessage;
@@ -22,12 +22,12 @@ export interface Platform {
   stop: () => Promise<void>;
   /** EventEmitter handlers */
   on(event: 'Balance', callback: (
-    platform: string,
+    platform: PlatformName,
     platformId: string,
     message?: DiscordMessage
   ) => void): this;
   on(event: 'Give', callback: (
-    platform: string,
+    platform: PlatformName,
     chatId: string,
     replyToMessageId: number,
     fromId: string,
@@ -38,19 +38,19 @@ export interface Platform {
     message?: DiscordMessage
   ) => void): this;
   on(event: 'Deposit', callback: (
-    platform: string,
+    platform: PlatformName,
     platformId: string,
     message?: DiscordMessage
   ) => void): this;
   on(event: 'Withdraw', callback: (
-    platform: string,
+    platform: PlatformName,
     platformId: string,
     wAmount: number,
     wAddress: string,
     message?: DiscordMessage
   ) => void): this;
   on(event: 'Link', callback: (
-    platform: string,
+    platform: PlatformName,
     platformId: string,
     secret: string | undefined,
     message?: DiscordMessage
@@ -58,12 +58,12 @@ export interface Platform {
   sendBalanceReply: (
     platformId: string,
     balance: string,
-    message?: Message
+    message?: PlatformMessage
    ) => Promise<void>;
   sendDepositReply: (
     platformId: string,
     address: string,
-    message?: Message
+    message?: PlatformMessage
   ) => Promise<void>;
   sendDepositReceived: (
     platformId: string,
@@ -78,7 +78,7 @@ export interface Platform {
     toUsername: string,
     txid: string,
     amount: string,
-    message?: Message
+    message?: PlatformMessage
   ) => Promise<void>;
   sendWithdrawReply: (
     platformId: string,
@@ -91,11 +91,11 @@ export interface Platform {
       amount?: string,
       error?: string
     },
-    message?: Message
+    message?: PlatformMessage
   ) => Promise<void>;
   sendLinkReply: (
     platformId: string,
     { error, secret }: { error?: string, secret?: string },
-    message?: Message
+    message?: PlatformMessage
   ) => Promise<void>;
 };
