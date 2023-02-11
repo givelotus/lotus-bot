@@ -168,12 +168,7 @@ export default class LotusBot {
   ) => {
     this._log(platform, `${platformId}: balance command received`);
     try {
-      const {
-        accountId,
-        userId
-      } = !(await this.prisma.isValidUser(platform, platformId))
-        ? await this._saveAccount(platform, platformId)
-        : await this.prisma.getIds(platform, platformId);
+      const { accountId } = await this._checkAccountValid(platform, platformId);
       const balance = await this.wallets.getAccountBalance(accountId);
       await this.bots[platform].sendBalanceReply(
         platformId,
@@ -196,10 +191,8 @@ export default class LotusBot {
   ) => {
     try {
       this._log(platform, `${platformId}: deposit command received`);
-      const { userId } = !(await this.prisma.isValidUser(platform, platformId))
-        ? await this._saveAccount(platform, platformId)
-        : await this.prisma.getIds(platform, platformId);
-      const address = this.wallets.getKey(userId)?.address?.toXAddress();
+      const { userId } = await this._checkAccountValid(platform, platformId);
+      const address = this.wallets.getXAddress(userId);
       await this.bots[platform].sendDepositReply(platformId, address, message);
       this._log(platform, `${platformId}: deposit: address sent to user`);
     } catch (e: any) {
@@ -238,9 +231,7 @@ export default class LotusBot {
       const {
         accountId: fromAccountId,
         userId: fromUserId
-      } = !(await this.prisma.isValidUser(platform, fromId))
-        ? await this._saveAccount(platform, fromId)
-        : await this.prisma.getIds(platform, fromId);
+      } = await this._checkAccountValid(platform, fromId);
       const balance = await this.wallets.getAccountBalance(fromAccountId);
       if (sats > balance) {
         this._log(platform, msg + `insufficient balance: ${balance}`);
@@ -249,9 +240,7 @@ export default class LotusBot {
       // Create account for toId if not exist
       const {
         userId: toUserId
-      } = !(await this.prisma.isValidUser(platform, toId))
-        ? await this._saveAccount(platform, toId)
-        : await this.prisma.getIds(platform, toId);
+      } = await this._checkAccountValid(platform, toId);
       // Give successful; broadcast tx and save to db
       const tx = await this.wallets.genTx({
         fromAccountId,
@@ -342,10 +331,10 @@ export default class LotusBot {
           message
         );
       }
-      const isValidUser = await this.prisma.isValidUser(platform, platformId);
-      const { accountId, userId } = !isValidUser
-        ? await this._saveAccount(platform, platformId)
-        : await this.prisma.getIds(platform, platformId);
+      const {
+        accountId,
+        userId
+      } = await this._checkAccountValid(platform, platformId);
       // Get the user's XAddress and check against outAddress
       const addresses = this.wallets.getXAddresses(accountId);
       if (addresses.includes(outAddress)) {
@@ -433,10 +422,10 @@ export default class LotusBot {
     const msg = `${platformId}: link: ${secret ? '<redacted>' : 'initiate'}: `;
     let error: string;
     try {
-      const isValidUser = await this.prisma.isValidUser(platform, platformId);
-      const { accountId, userId } = !isValidUser
-        ? await this._saveAccount(platform, platformId)
-        : await this.prisma.getIds(platform, platformId);
+      const {
+        accountId,
+        userId
+      } = await this._checkAccountValid(platform, platformId);
       switch (typeof secret) {
         /** User provided secret to link account */
         case 'string':
@@ -529,6 +518,20 @@ export default class LotusBot {
     } catch (e: any) {
       throw new Error(`_saveAccount: ${e.message}`);
     }
+  };
+  /**
+   * Checks if `platformId` of `platform` is valid.  
+   * If not, creates it; if so, gathers data from the database  
+   * @returns `accountId` and `userId`
+   */
+  private _checkAccountValid = async (
+    platform: PlatformName,
+    platformId: string,
+  ) => {
+    const isValidUser = await this.prisma.isValidUser(platform, platformId);
+    return !isValidUser
+      ? await this._saveAccount(platform, platformId)
+      : await this.prisma.getIds(platform, platformId);
   };
 
   private _saveDeposit = async (
