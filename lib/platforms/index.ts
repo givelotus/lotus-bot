@@ -35,25 +35,25 @@ export interface Platform {
     toId: string,
     toUsername: string,
     value: string,
-    message?: DiscordMessage
+    message?: PlatformMessage
   ) => void): this;
   on(event: 'Deposit', callback: (
     platform: PlatformName,
     platformId: string,
-    message?: DiscordMessage
+    message?: PlatformMessage
   ) => void): this;
   on(event: 'Withdraw', callback: (
     platform: PlatformName,
     platformId: string,
     wAmount: number,
     wAddress: string,
-    message?: DiscordMessage
+    message?: PlatformMessage
   ) => void): this;
   on(event: 'Link', callback: (
     platform: PlatformName,
     platformId: string,
     secret: string | undefined,
-    message?: DiscordMessage
+    message?: PlatformMessage
   ) => void): this;
   sendBalanceReply: (
     platformId: string,
