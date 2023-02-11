@@ -500,12 +500,14 @@ export default class LotusBot {
     try {
       const accountId = Util.newUUID();
       const userId = Util.newUUID();
+      const secret = Util.newUUID();
       const mnemonic = WalletManager.newMnemonic();
       const hdPrivKey = WalletManager.newHDPrivateKey(mnemonic);
       const hdPubKey = hdPrivKey.hdPublicKey;
       await this.prisma.saveAccount({
         accountId,
         userId,
+        secret,
         platform,
         platformId,
         mnemonic: mnemonic.toString(),

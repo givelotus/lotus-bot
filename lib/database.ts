@@ -1,7 +1,6 @@
 import { PrismaClient } from "../prisma/prisma-client-js";
 import { PlatformDatabaseTable } from "./platforms";
 import { AccountUtxo } from "./wallet";
-import * as Util from '../util';
 import { BOT } from "../util/constants";
 
 type Deposit = AccountUtxo & {
@@ -198,6 +197,7 @@ export class Database {
   saveAccount = async ({
     accountId,
     userId,
+    secret,
     platform,
     platformId,
     mnemonic,
@@ -206,6 +206,7 @@ export class Database {
   }: {
     accountId: string,
     userId: string,
+    secret: string,
     platform?: string,
     platformId?: string,
     mnemonic: string,
@@ -219,7 +220,7 @@ export class Database {
         id: accountId,
         users: { create: {
           id: userId,
-          secret: Util.newUUID(),
+          secret,
           key: {
             create: {
               mnemonic,
