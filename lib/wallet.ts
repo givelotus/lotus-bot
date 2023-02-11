@@ -28,8 +28,7 @@ type WalletKey = {
   utxos: ParsedUtxo[];
 };
 
-/** `string` = `userId` */
-type AccountKey = [string, WalletKey];
+type AccountKey = [ userId: string, key: WalletKey ];
 
 type ParsedUtxo = {
   txid: string;
