@@ -83,6 +83,7 @@ balance .......... Get the XPI Balance of the current user.
 deposit .......... Start deposit with QR or lotus_ address.
 withdraw ......... Start withdraw to external wallet.
 give    .......... Give XPI to mentioned user.
+link    .......... Link accounts across platforms on the same bot.
 ```
 
 ## Runtime Notes
