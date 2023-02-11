@@ -46,4 +46,10 @@ implements Platform {
       error?: string
     }
   ) => Promise<void>;
+  sendLinkReply = async (
+    platformId: string,
+    { error, secret }: { error?: string, secret?: string },
+  ) => {
+
+  };
 };
