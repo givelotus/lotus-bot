@@ -3,6 +3,7 @@ import { Twitter, TwitterMessage } from './twitter';
 import { Discord, DiscordMessage } from './discord';
 
 export { Telegram, Twitter, Discord };
+export type Name = 'telegram' | 'twitter' | 'discord';
 export type PlatformDatabaseTable = 'userTelegram' | 'userTwitter' | 'userDiscord';
 export type Message =
   | TelegramMessage

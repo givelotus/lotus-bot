@@ -20,14 +20,20 @@ const { MIN_OUTPUT_AMOUNT } = TRANSACTION;
 export default class LotusBot {
   private prisma: Database;
   private wallets: WalletManager;
-  private bots: { [name: string]: Platforms.Platform } = {};
+  private bots: {
+    [platform in Platforms.Name]: Platforms.Platform
+  } = {
+    telegram: undefined,
+    twitter: undefined,
+    discord: undefined
+  };
 
   constructor() {
     this.prisma = new Database();
     this.wallets = new WalletManager();
-    this.bots['telegram'] = new Platforms.Telegram();
-    this.bots['twitter'] = new Platforms.Twitter();
-    this.bots['discord'] = new Platforms.Discord();
+    this.bots.telegram = new Platforms.Telegram();
+    this.bots.twitter = new Platforms.Twitter();
+    this.bots.discord = new Platforms.Discord();
   };
 
   init = async () => {
