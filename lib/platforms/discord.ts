@@ -304,7 +304,6 @@ implements Platform {
     }
   };
   private _handleReady = () => {
-    console.log(`Logged in as ${this.client.user.tag}!`);
     this._setRandomActivity();
     this.activityInterval = setInterval(this._setRandomActivity, 10000);
   };
