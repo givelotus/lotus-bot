@@ -58,7 +58,7 @@ implements Platform {
 
   setup = async (apiKey: string) => {
     this.bot = new Telegraf(apiKey);
-    this.bot.command('give', this._give);
+    this.bot.command('give', this._handleGroupMessage);
     this.bot.command('balance', this._handleDirectMessage);
     this.bot.command('deposit', this._handleDirectMessage);
     this.bot.command('withdraw', this._handleDirectMessage);
@@ -236,65 +236,68 @@ implements Platform {
   };
 
   private _handleDirectMessage = async (
-    ctx: Context
-  ) => {
-    if (ctx.chat.type !== 'private') {
-      return await ctx.sendMessage(
-        BOT.MESSAGE.ERR_DM_COMMAND,
-        { reply_to_message_id: ctx.message.message_id }
-      );
-    }
-    const reply = { msg: '' };
-    const platformId = ctx.message.from.id.toString();
-    const messageText = <string>(<any>ctx.message).text;
-    const command = messageText.split(' ').shift();
-    switch (command) {
-      case '/deposit':
-        return this.emit('Deposit', 'telegram', platformId);
-      case '/withdraw':
-        const [ wAmount, wAddress ] = parseWithdraw(messageText);
-        if (!wAmount || !wAddress) {
-          return ctx.sendMessage(
-            `Syntax: \`/withdraw <amount> <address>\``,
-            { parse_mode: 'Markdown' }
-          );
-        }
-        if (Number(wAmount) <= 0) {
-          return ctx.sendMessage(
-            `Invalid amount \`wAmount\` specified.`,
-            { parse_mode: 'Markdown' }
-          );
-        }
-        return this.emit(
-          'Withdraw',
-          'telegram',
-          platformId,
-          wAmount,
-          wAddress
-        );
-      case '/balance':
-        return this.emit('Balance', 'telegram', platformId);
-      case '/link':
-        const secret = parseLink(messageText);
-        return this.emit('Link', 'telegram', platformId, secret);
-      case '/start':
-        reply.msg = `Welcome to my home! ` +
-        `I can help you deposit Lotus and give Lotus to other users.\r\n\r\n` +
-        `Please see the Menu for available commands.`;
-        return ctx.sendMessage(reply.msg);
-      default:
-        return ctx.sendMessage(
-          `Command \`${command}\` is not supported.`,
-          { parse_mode: 'Markdown' }
-        )
-    }
-  };
-  
-  private _give = async (
-    ctx: Context
+    ctx: TelegramMessage
   ) => {
     try {
-      const chatId = ctx.message.chat.id;
+      if (ctx.chat.type !== 'private') {
+        return await ctx.sendMessage(
+          BOT.MESSAGE.ERR_DM_COMMAND,
+          { reply_to_message_id: ctx.message.message_id }
+        );
+      }
+      const platformId = ctx.message.from.id.toString();
+      const messageText = <string>(<any>ctx.message).text;
+      const command = messageText.split(' ').shift();
+      switch (command) {
+        case '/deposit':
+          return this.emit('Deposit', 'telegram', platformId);
+        case '/withdraw':
+          const [ wAmount, wAddress ] = parseWithdraw(messageText);
+          if (!wAmount || !wAddress) {
+            return ctx.sendMessage(
+              `Syntax: \`/withdraw <amount> <address>\``,
+              { parse_mode: 'Markdown' }
+            );
+          }
+          if (Number(wAmount) <= 0) {
+            return ctx.sendMessage(
+              `Invalid amount \`wAmount\` specified.`,
+              { parse_mode: 'Markdown' }
+            );
+          }
+          return this.emit(
+            'Withdraw',
+            'telegram',
+            platformId,
+            wAmount,
+            wAddress
+          );
+        case '/balance':
+          return this.emit('Balance', 'telegram', platformId);
+        case '/link':
+          const secret = parseLink(messageText);
+          return this.emit('Link', 'telegram', platformId, secret);
+        case '/start':
+          return ctx.sendMessage(
+            `Welcome to my home! ` +
+          `I can help you deposit Lotus and give Lotus to other users.\r\n\r\n` +
+          `Please see the Menu for available commands.`
+          );
+        default:
+          return ctx.sendMessage(
+            `Command \`${command}\` is not supported.`,
+            { parse_mode: 'Markdown' }
+          )
+      }
+    } catch (e: any) {
+      throw new Error(`_handleDirectMessage: ${e.message}`);
+    }
+  };
+
+  private _handleGroupMessage = async (
+    ctx: TelegramMessage
+  ) => {
+    try {
       const replyToMessageId = ctx.message.message_id;
       if (ctx.message.chat.type == 'private') {
         return await ctx.sendMessage(
@@ -302,48 +305,54 @@ implements Platform {
           { reply_to_message_id: replyToMessageId }
         );
       }
+      const chatId = ctx.message.chat.id;
       const { id: fromId, username: fromUsername } = ctx.message.from;
       const repliedMessage = <Message>(<any>ctx.message).reply_to_message;
       const toId = repliedMessage?.from?.id;
       const toUsername = repliedMessage?.from?.username;
-      if (
-        !toId ||
-        !toUsername || 
-        fromId == toId
-      ) {
-        return await ctx.sendMessage(
-          BOT.MESSAGE.ERR_GIVE_MUST_REPLY_TO_USER,
-          { reply_to_message_id: replyToMessageId }
-        );
-      }
-      if (toId == ctx.botInfo.id) {
-        return await ctx.sendMessage(
-          BOT.MESSAGE.ERR_GIVE_TO_BOT,
-          { reply_to_message_id: replyToMessageId }
-        )
-      }
       const messageText = <string>(<any>ctx.message).text;
-      const amount = parseGive(messageText);
-      const amountInt = Number(amount);
-      if (isNaN(amountInt) || amountInt <= 0) {
-        return await ctx.sendMessage(
-          BOT.MESSAGE.ERR_AMOUNT_INVALID,
-          { reply_to_message_id: replyToMessageId }
-        );
+      const command = messageText.split(' ').shift();
+      switch (command) {
+        case '/give':
+          if (
+            !toId ||
+            !toUsername || 
+            fromId == toId
+          ) {
+            return await ctx.sendMessage(
+              BOT.MESSAGE.ERR_GIVE_MUST_REPLY_TO_USER,
+              { reply_to_message_id: replyToMessageId }
+            );
+          }
+          if (toId == ctx.botInfo.id) {
+            return await ctx.sendMessage(
+              BOT.MESSAGE.ERR_GIVE_TO_BOT,
+              { reply_to_message_id: replyToMessageId }
+            )
+          }
+          const messageText = <string>(<any>ctx.message).text;
+          const amount = parseGive(messageText);
+          const amountInt = Number(amount);
+          if (isNaN(amountInt) || amountInt <= 0) {
+            return await ctx.sendMessage(
+              BOT.MESSAGE.ERR_AMOUNT_INVALID,
+              { reply_to_message_id: replyToMessageId }
+            );
+          }
+          return this.emit(
+            'Give',
+            'telegram', 
+            chatId,
+            replyToMessageId,
+            fromId.toString(),
+            fromUsername,
+            toId.toString(),
+            toUsername,
+            amount
+          );
       }
-      this.emit(
-        'Give',
-        'telegram', 
-        chatId,
-        replyToMessageId,
-        fromId.toString(),
-        fromUsername,
-        toId.toString(),
-        toUsername,
-        amount
-      );
     } catch (e: any) {
-      throw new Error(`_give: ${e.message}`);
+      throw new Error(`_handleGroupMessage: ${e.message}`);
     }
   };
 
