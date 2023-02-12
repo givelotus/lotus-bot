@@ -110,8 +110,6 @@ export class WalletManager extends EventEmitter {
     }
     return sats.total;
   };
-  /** Return single `WalletKey` of `userId` */
-  getKey = (userId: string): WalletKey | undefined => this.keys[userId];
   /** Return the XAddress of the `WalletKey` of `userId` */
   getXAddress = (userId: string) => this.keys[userId].address.toXAddress();
   getXAddresses = (accountId: string) => {
@@ -141,7 +139,7 @@ export class WalletManager extends EventEmitter {
       const scriptType = this._chronikScriptType(address);
       const scriptHex = script.getPublicKeyHash().toString('hex');
       const utxos = await this._fetchUtxos(scriptType, scriptHex);
-      const parsedUtxos = utxos?.map(utxo => this._toParsedUtxo(utxo));
+      const parsedUtxos = utxos.map(utxo => this._toParsedUtxo(utxo));
       this.keys[userId] = {
         accountId,
         signingKey,
@@ -351,6 +349,7 @@ export class WalletManager extends EventEmitter {
           if (userScriptHex != scriptHex) {
             continue;
           }
+          // found our userId/key; save utxo
           const parsedUtxo = {
             txid: msg.txid,
             outIdx: i,
