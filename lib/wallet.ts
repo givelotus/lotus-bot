@@ -277,23 +277,18 @@ export class WalletManager extends EventEmitter {
     userId: string
   ) => {
     try {
-      const outpoints: OutPoint[] = [];
       const utxos = this.keys[userId].utxos;
-      for (const utxo of utxos) {
-        outpoints.push(WalletManager.toOutpoint(utxo));
-      }
-      const reconciled: ParsedUtxo[] = [];
+      const outpoints = utxos.map(utxo => WalletManager.toOutpoint(utxo));
       const result = await this.chronik.validateUtxos(outpoints);
-      for (let i = 0; i < result.length; i++) {
+      this.keys[userId].utxos = utxos.filter((utxo, i) => {
         switch (result[i].state) {
           case 'NO_SUCH_TX':
           case 'NO_SUCH_OUTPUT':
           case 'SPENT':
-            continue;
+            return false;
         }
-        reconciled.push(utxos[i]);
-      }
-      this.keys[userId].utxos = reconciled;
+        return true;
+      })
     } catch (e: any) {
       throw new Error(`_consolidateUtxos: ${e.message}`);
     }
