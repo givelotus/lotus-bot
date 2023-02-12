@@ -41,7 +41,7 @@ model Give {
   to User @relation("to", fields: [toId], references: [id])
   // Amount given, in satoshis
   value String
-  @@index([platform, fromId, toId])
+  @@index([txid, platform, fromId, toId])
 }
 
 model Account {
@@ -62,6 +62,7 @@ model User {
   withdrawals Withdrawal[]
   gives Give[] @relation("from")
   receives Give[] @relation("to")
+  @@index([id, secret, accountId])
 }
 
 model UserTelegram {
