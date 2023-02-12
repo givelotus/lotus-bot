@@ -28,8 +28,7 @@ type WalletKey = {
   utxos: ParsedUtxo[];
 };
 
-/** `string` = `userId` */
-type AccountKey = [string, WalletKey];
+type AccountKey = [ userId: string, key: WalletKey ];
 
 type ParsedUtxo = {
   txid: string;
@@ -111,8 +110,6 @@ export class WalletManager extends EventEmitter {
     }
     return sats.total;
   };
-  /** Return single `WalletKey` of `userId` */
-  getKey = (userId: string): WalletKey | undefined => this.keys[userId];
   /** Return the XAddress of the `WalletKey` of `userId` */
   getXAddress = (userId: string) => this.keys[userId].address.toXAddress();
   getXAddresses = (accountId: string) => {
@@ -142,7 +139,7 @@ export class WalletManager extends EventEmitter {
       const scriptType = this._chronikScriptType(address);
       const scriptHex = script.getPublicKeyHash().toString('hex');
       const utxos = await this._fetchUtxos(scriptType, scriptHex);
-      const parsedUtxos = utxos?.map(utxo => this._toParsedUtxo(utxo));
+      const parsedUtxos = utxos.map(utxo => this._toParsedUtxo(utxo));
       this.keys[userId] = {
         accountId,
         signingKey,
@@ -278,23 +275,18 @@ export class WalletManager extends EventEmitter {
     userId: string
   ) => {
     try {
-      const outpoints: OutPoint[] = [];
       const utxos = this.keys[userId].utxos;
-      for (const utxo of utxos) {
-        outpoints.push(WalletManager.toOutpoint(utxo));
-      }
-      const reconciled: ParsedUtxo[] = [];
+      const outpoints = utxos.map(utxo => WalletManager.toOutpoint(utxo));
       const result = await this.chronik.validateUtxos(outpoints);
-      for (let i = 0; i < result.length; i++) {
+      this.keys[userId].utxos = utxos.filter((utxo, i) => {
         switch (result[i].state) {
           case 'NO_SUCH_TX':
           case 'NO_SUCH_OUTPUT':
           case 'SPENT':
-            continue;
+            return false;
         }
-        reconciled.push(utxos[i]);
-      }
-      this.keys[userId].utxos = reconciled;
+        return true;
+      })
     } catch (e: any) {
       throw new Error(`_consolidateUtxos: ${e.message}`);
     }
@@ -357,6 +349,7 @@ export class WalletManager extends EventEmitter {
           if (userScriptHex != scriptHex) {
             continue;
           }
+          // found our userId/key; save utxo
           const parsedUtxo = {
             txid: msg.txid,
             outIdx: i,

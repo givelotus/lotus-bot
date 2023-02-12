@@ -1,8 +1,6 @@
 import { PrismaClient } from "../prisma/prisma-client-js";
 import { PlatformDatabaseTable } from "./platforms";
 import { AccountUtxo } from "./wallet";
-import * as Util from '../util';
-import { BOT } from "../util/constants";
 
 type Deposit = AccountUtxo & {
   timestamp: Date,
@@ -127,24 +125,6 @@ export class Database {
       throw new Error(`getIds: ${e.message}`);
     }
   };
-  /** Get the `accountId` for the specified `platformId` */
-  getAccountId = async (
-    platform: string,
-    platformId: string
-  ) => {
-    const platformTable = this._toPlatformTable(platform);
-    try {
-      const result = await this.prisma[platformTable].findFirst({
-        where: { id: platformId },
-        select: { user: { 
-          select: { accountId: true }
-        }}
-      });
-      return result.user.accountId;
-    } catch (e: any) {
-      throw new Error(`getAccountId: ${e.message}`);
-    }
-  };
   getAccountIdFromSecret = async (
     secret: string
   ) => {
@@ -175,22 +155,6 @@ export class Database {
       throw new Error(`getUserSecret: ${e.message}`);
     }
   };
-  /** Get the `userId` for the specified `platformId` */
-  getUserId = async (
-    platform: string,
-    platformId: string
-  ) => {
-    const platformTable = this._toPlatformTable(platform);
-    try {
-      const result = await this.prisma[platformTable].findFirst({
-        where: { id: platformId },
-        select: { userId: true }
-      });
-      return result.userId;
-    } catch (e: any) {
-      throw new Error(`getUserId: ${e.message}`);
-    }
-  };
   /**
    * Save new `Account` to the database  
    * Also saves all associated data (e.g. Platform, WalletKey, etc.)
@@ -198,6 +162,7 @@ export class Database {
   saveAccount = async ({
     accountId,
     userId,
+    secret,
     platform,
     platformId,
     mnemonic,
@@ -206,6 +171,7 @@ export class Database {
   }: {
     accountId: string,
     userId: string,
+    secret: string,
     platform?: string,
     platformId?: string,
     mnemonic: string,
@@ -219,7 +185,7 @@ export class Database {
         id: accountId,
         users: { create: {
           id: userId,
-          secret: Util.newUUID(),
+          secret,
           key: {
             create: {
               mnemonic,
