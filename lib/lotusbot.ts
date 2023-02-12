@@ -172,7 +172,7 @@ export default class LotusBot {
       const balance = await this.wallets.getAccountBalance(accountId);
       await this.bots[platform].sendBalanceReply(
         platformId,
-        Util.toLocaleXPI(balance),
+        Util.toXPI(balance),
         message
       );
       this._log(
@@ -275,7 +275,7 @@ export default class LotusBot {
           fromUsername,
           toUsername,
           tx.txid,
-          Util.toLocaleXPI(sats),
+          Util.toXPI(sats),
           message
         );
         this._log(platform, msg + `success: user notified`);
@@ -326,7 +326,7 @@ export default class LotusBot {
           platformId,
           { error:
             `withdraw minimum is ` +
-            `${Util.toLocaleXPI(MIN_OUTPUT_AMOUNT)} XPI`
+            `${Util.toXPI(MIN_OUTPUT_AMOUNT)} XPI`
           },
           message
         );
@@ -397,7 +397,7 @@ export default class LotusBot {
         const outSats = tx.outputs[0].satoshis;
         await bot.sendWithdrawReply(
           platformId,
-          { txid: tx.txid, amount: Util.toLocaleXPI(outSats) },
+          { txid: tx.txid, amount: Util.toXPI(outSats) },
           message
         );
         this._log(
@@ -563,8 +563,8 @@ export default class LotusBot {
           await this.bots[platform as PlatformName].sendDepositReceived(
             platformId,
             utxo.txid,
-            Util.toLocaleXPI(utxo.value),
-            Util.toLocaleXPI(balance)
+            Util.toXPI(utxo.value),
+            Util.toXPI(balance)
           );
           this._log(
             platform,

@@ -8,14 +8,7 @@ export const toSats = (
 
 export const toXPI = (
   sats: number | string
-) => Number(sats) / Constants.XPI_DIVISOR;
-
-export const toLocaleXPI = (
-  sats: number | string
-) => toXPI(sats).toLocaleString('en', {
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 6
-});
+) => (Number(sats) / Constants.XPI_DIVISOR).toString();
 
 export const newUUID = () => randomUUID();
 export const split = (text: string) => text.split(/\s+|\r?\n/);
