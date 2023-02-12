@@ -23,7 +23,11 @@ const DB = 'prisma';
 const MAIN = 'lotusbot';
 
 const { MIN_OUTPUT_AMOUNT } = TRANSACTION;
-
+/**
+ * Master class  
+ * Processes all platform commands  
+ * Handles communication between submodules
+ */
 export default class LotusBot {
   private prisma: Database;
   private wallets: WalletManager;
@@ -42,7 +46,10 @@ export default class LotusBot {
     this.bots.twitter = new Twitter();
     this.bots.discord = new Discord();
   };
-
+  /**
+   * Initialize all submodules  
+   * Set up required event handlers
+   */
   init = async () => {
     process.on('SIGINT', this._shutdown);
     try {
@@ -67,7 +74,10 @@ export default class LotusBot {
     }
     this._log(MAIN, "service initialized successfully");
   };
-
+  /**
+   * Initialize all configured bot modules  
+   * A bot module is considered enabled if the `.env` includes `APIKEY` entry
+   */
   private _initBots = async () => {
     for (const [ platform, apiKey ] of Object.entries(config.apiKeys)) {
       // Skip platforms not configured
@@ -84,7 +94,10 @@ export default class LotusBot {
       }
     }
   };
-
+  /**
+   * Initialize Prisma module:  
+   * - Connect to the database
+   */
   private _initPrisma = async () => {
     try {
       await this.prisma.connect();
@@ -93,7 +106,11 @@ export default class LotusBot {
       throw new Error(`_initPrisma: ${e.message}`);
     }
   };
-
+  /**
+   * Initialize WalletManager module:  
+   * - Get all WalletKeys from database
+   * - Load all WalletKeys into WalletManager
+   */
   private _initWalletManager = async () => {
     try {
       const keys = await this.prisma.getUserWalletKeys();
@@ -128,18 +145,18 @@ export default class LotusBot {
       throw new Error(`_initReconcileDeposits: ${e.message}`);
     }
   };
-
+  /** Informational and error logging */
   private _log = (
     module: string,
     message: string
   ) => console.log(`${module.toUpperCase()}: ${message}`);
-
+  /** Platform notification error logging */
   private _logPlatformNotifyError = (
     platform: PlatformName,
     msg: string,
     error: string
   ) => this._log(platform, `${msg} failed to notify user: ${error}`);
-
+  /** Shutdown all submodules */
   private _shutdown = async () => {
     console.log();
     this._log(`process`, `shutting down`);
@@ -491,7 +508,7 @@ export default class LotusBot {
   /**
    * - Save platformId/user/account to database
    * - Load new account `WalletKey` into WalletManager
-   * - Return `userId` from saved account
+   * - Return `accountId` and `userId` from saved account
    */
   private _saveAccount = async (
     platform: PlatformName,
@@ -556,7 +573,7 @@ export default class LotusBot {
         if (!platformId) {
           continue;
         }
-        const accountId = await this.prisma.getAccountId(platform, platformId);
+        const { accountId} = await this.prisma.getIds(platform, platformId);
         const balance = await this.wallets.getAccountBalance(accountId);
         // try to notify user of deposit received
         try {

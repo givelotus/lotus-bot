@@ -4,12 +4,12 @@ export const XPI_DIVISOR = 1000000;
 // Default bot database properties
 export const BOT = {
   MESSAGE: {
-    ERR_DM_COMMAND: 'Please send me this command in a DM',
-    ERR_NOT_DM_COMMAND: 'This command does not work in a DM',
+    ERR_DM_COMMAND: 'Please send me this command in a DM.',
+    ERR_NOT_DM_COMMAND: 'This command does not work in a DM.',
     ERR_MUST_GIVE_TO_OTHER_USER: 'You cannot give Lotus to yourself. :)',
     ERR_GIVE_MUST_REPLY_TO_USER:
-      'You must reply to another user to give Lotus',
-    ERR_AMOUNT_INVALID: 'Invalid amount specified',
+      'You must reply to another user to give Lotus.',
+    ERR_AMOUNT_INVALID: 'Invalid amount specified.',
     ERR_GIVE_TO_BOT:
       'I appreciate the thought, but you cannot give me Lotus. :)',
     GIVE:

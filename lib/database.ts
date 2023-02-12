@@ -1,7 +1,6 @@
 import { PrismaClient } from "../prisma/prisma-client-js";
 import { PlatformDatabaseTable } from "./platforms";
 import { AccountUtxo } from "./wallet";
-import { BOT } from "../util/constants";
 
 type Deposit = AccountUtxo & {
   timestamp: Date,
@@ -126,24 +125,6 @@ export class Database {
       throw new Error(`getIds: ${e.message}`);
     }
   };
-  /** Get the `accountId` for the specified `platformId` */
-  getAccountId = async (
-    platform: string,
-    platformId: string
-  ) => {
-    const platformTable = this._toPlatformTable(platform);
-    try {
-      const result = await this.prisma[platformTable].findFirst({
-        where: { id: platformId },
-        select: { user: { 
-          select: { accountId: true }
-        }}
-      });
-      return result.user.accountId;
-    } catch (e: any) {
-      throw new Error(`getAccountId: ${e.message}`);
-    }
-  };
   getAccountIdFromSecret = async (
     secret: string
   ) => {
@@ -172,22 +153,6 @@ export class Database {
       return result.user.secret;
     } catch (e: any) {
       throw new Error(`getUserSecret: ${e.message}`);
-    }
-  };
-  /** Get the `userId` for the specified `platformId` */
-  getUserId = async (
-    platform: string,
-    platformId: string
-  ) => {
-    const platformTable = this._toPlatformTable(platform);
-    try {
-      const result = await this.prisma[platformTable].findFirst({
-        where: { id: platformId },
-        select: { userId: true }
-      });
-      return result.userId;
-    } catch (e: any) {
-      throw new Error(`getUserId: ${e.message}`);
     }
   };
   /**
