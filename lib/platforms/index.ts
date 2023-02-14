@@ -2,7 +2,11 @@ import { Telegram, TelegramMessage } from './telegram';
 import { Twitter, TwitterMessage } from './twitter';
 import { Discord, DiscordMessage } from './discord';
 
-export { Telegram, Twitter, Discord };
+export const Platforms = {
+  telegram: Telegram,
+  twitter: Twitter,
+  discord: Discord
+};
 export type PlatformName = 'telegram' | 'twitter' | 'discord';
 export type PlatformDatabaseTable = 'userTelegram' | 'userTwitter' | 'userDiscord';
 export type PlatformMessage =

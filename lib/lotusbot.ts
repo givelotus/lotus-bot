@@ -1,7 +1,5 @@
 import {
-  Discord,
-  Telegram,
-  Twitter,
+  Platforms,
   PlatformName,
   PlatformMessage,
   Platform,
@@ -31,20 +29,21 @@ const { MIN_OUTPUT_AMOUNT } = TRANSACTION;
 export default class LotusBot {
   private prisma: Database;
   private wallets: WalletManager;
-  private bots: {
-    [platform in PlatformName]: Platform
-  } = {
-    telegram: undefined,
-    twitter: undefined,
-    discord: undefined
-  };
+  private bots: { [platform in PlatformName]?: Platform } = {};
+  /** Hold enabled platforms */
+  private platforms: [name: PlatformName, apiKey: string][] = [];
 
   constructor() {
     this.prisma = new Database();
     this.wallets = new WalletManager();
-    this.bots.telegram = new Telegram();
-    this.bots.twitter = new Twitter();
-    this.bots.discord = new Discord();
+    /** Gather enabled platforms */
+    for (const [ platform, apiKey ] of Object.entries(config.apiKeys)) {
+      const name = platform as PlatformName;
+      if (apiKey) {
+        this.platforms.push([name, apiKey]);
+        this.bots[name] = new Platforms[name]();
+      }
+    }
   };
   /**
    * Initialize all submodules  
@@ -64,14 +63,13 @@ export default class LotusBot {
     }
     // Set up event handlers once we are ready
     this.wallets.on('AddedToMempool', this._handleUtxoAddedToMempool);
-    for (const platform of Object.keys(this.bots)) {
-      const name = platform as PlatformName;
+    this.platforms.forEach(([ name ]) => {
       this.bots[name].on('Balance', this._handleBalanceCommand);
       this.bots[name].on('Deposit', this._handleDepositCommand);
       this.bots[name].on('Give', this._handleGiveCommand);
       this.bots[name].on('Withdraw', this._handleWithdrawCommand);
       this.bots[name].on('Link', this._handleLinkCommand);
-    }
+    })
     this._log(MAIN, "service initialized successfully");
   };
   /**
@@ -79,16 +77,11 @@ export default class LotusBot {
    * A bot module is considered enabled if the `.env` includes `APIKEY` entry
    */
   private _initBots = async () => {
-    for (const [ platform, apiKey ] of Object.entries(config.apiKeys)) {
-      // Skip platforms not configured
-      if (!apiKey) {
-        continue;
-      }
-      const name = platform as PlatformName;
+    for (const [ name, apiKey ] of this.platforms) {
       try {
         await this.bots[name].setup(apiKey);
         await this.bots[name].launch();
-        this._log(platform, `initialized`);
+        this._log(name, `initialized`);
       } catch (e: any) {
         throw new Error(`_initBot: ${e.message}`);
       }
@@ -160,9 +153,10 @@ export default class LotusBot {
   private _shutdown = async () => {
     console.log();
     this._log(`process`, `shutting down`);
-    await this.bots['telegram']?.stop();
-    await this.bots['twitter']?.stop();
-    await this.bots['discord']?.stop();
+    /** Shutdown enabled platforms */
+    for (const [ name ] of this.platforms) {
+      await this.bots[name].stop();
+    }
     this.wallets?.closeWsEndpoint();
     await this.prisma?.disconnect();
     process.exit(1);
