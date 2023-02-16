@@ -19,7 +19,6 @@ import { WALLET } from '../util/constants';
 import { EventEmitter } from 'node:stream';
 
 type WalletKey = {
-  accountId: string;
   signingKey: PrivateKey;
   address: Address;
   script: Script;
@@ -141,7 +140,6 @@ export class WalletManager extends EventEmitter {
       const utxos = await this._fetchUtxos(scriptType, scriptHex);
       const parsedUtxos = utxos.map(utxo => this._toParsedUtxo(utxo));
       this.keys[userId] = {
-        accountId,
         signingKey,
         address,
         script,
