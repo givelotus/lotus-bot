@@ -467,7 +467,7 @@ export default class LotusBot {
             msg + `successfully linked to ${linkAccountId} accountId`
           );
           // update walletkey with new accountId
-          this.wallets.updateKey(linkAccountId, userId);
+          this.wallets.updateKey(userId, accountId, linkAccountId);
           try {
             return await this.bots[platform].sendLinkReply(
               platformId,

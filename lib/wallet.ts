@@ -28,8 +28,6 @@ type WalletKey = {
   utxos: ParsedUtxo[];
 };
 
-type AccountKey = [ userId: string, key: WalletKey ];
-
 type ParsedUtxo = {
   txid: string;
   outIdx: number;
@@ -50,6 +48,8 @@ export class WalletManager extends EventEmitter {
   private chronikWs: WsEndpoint;
   // Wallet properties
   private keys: { [userId: string]: WalletKey } = {};
+  /** Array of associated `userId` strings for each `accountId` */
+  private accounts: { [accountId: string]: string[] } = {};
   /** Provides all off- and on-chain wallet functionality */
   constructor() {
     super();
@@ -88,11 +88,14 @@ export class WalletManager extends EventEmitter {
   /** Get the UTXOs for every `WalletKey` */
   getUtxos = () => {
     const utxos: AccountUtxo[] = [];
-    for (const [ userId, key ] of Object.entries(this.keys)) {
-      const accountUtxos = key.utxos.map(utxo => {
-        return { ...utxo, userId };
-      });
-      utxos.push(...accountUtxos);
+    for (const userIds of Object.values(this.accounts)) {
+      userIds.forEach(userId => 
+        utxos.push(
+          ...this.keys[userId].utxos.map(utxo => {
+            return { ...utxo, userId };
+          })
+        )
+      );
     }
     return utxos;
   };
@@ -100,23 +103,20 @@ export class WalletManager extends EventEmitter {
   getAccountBalance = async (
     accountId: string
   ) => {
-    const sats = { total: 0 };
-    const keys = this._getKeys(accountId);
-    for (const [ userId ] of keys) {
+    let sats = 0;
+    for (const userId of this.accounts[accountId]) {
       // Validate the utxos of this WalletKey; discards invalid utxos
       await this._reconcileUtxos(userId);
-      const utxos = this.keys[userId].utxos;
-      utxos.forEach(utxo => sats.total += Number(utxo.value));
+      this.keys[userId].utxos.forEach(utxo => sats += Number(utxo.value));
     }
-    return sats.total;
+    return sats;
   };
   /** Return the XAddress of the `WalletKey` of `userId` */
   getXAddress = (userId: string) => this.keys[userId].address.toXAddress();
   getXAddresses = (accountId: string) => {
-    const keys = this._getKeys(accountId);
-    const addresses: string[] = [];
-    keys.forEach(([, key]) => addresses.push(key.address.toXAddress()));
-    return addresses;
+    return this.accounts[accountId].map(userId => {
+      return this.keys[userId].address.toXAddress()
+    });
   };
   /** 
    * - load wallet signingKey, script, address
@@ -149,6 +149,9 @@ export class WalletManager extends EventEmitter {
         scriptType,
         utxos: parsedUtxos
       }
+      this.accounts[accountId]
+        ? this.accounts[accountId].push(userId)
+        : this.accounts[accountId] = [userId];
       this.chronikWs.subscribe(scriptType, scriptHex);
     } catch (e: any) {
       throw new Error(`loadKey: ${userId}: ${e.message}`);
@@ -156,9 +159,14 @@ export class WalletManager extends EventEmitter {
   };
   /** Update the WalletKey of `userId` with provided `accountId` */
   updateKey = (
-    accountId: string,
-    userId: string
-  ) => this.keys[userId].accountId = accountId;
+    userId: string,
+    oldAccountId: string,
+    newAccountId: string,
+  ) => {
+    const idx = this.accounts[oldAccountId].findIndex(id => id == userId);
+    this.accounts[oldAccountId].splice(idx, 1);
+    this.accounts[newAccountId].push(userId);
+  };
   /** Process Give/Withdraw tx for the provided `fromUserId` */
   genTx = async ({
     fromAccountId,
@@ -173,7 +181,7 @@ export class WalletManager extends EventEmitter {
   }) => {
     try {
       return this._genTx(
-        this._getKeys(fromAccountId),
+        this.accounts[fromAccountId],
         outAddress || this.keys[toUserId].address,
         sats
       );
@@ -193,22 +201,17 @@ export class WalletManager extends EventEmitter {
       throw new Error(`_broadcastTx: ${e.message}`);
     }
   };
-  /** Get all `[ userId, WalletKey ]` of the provided `accountId` */
-  private _getKeys = (
-    accountId: string
-  ): AccountKey[] =>
-    Object.entries(this.keys)
-      .filter(([ , key ]) => key.accountId == accountId);
   /** Generate transaction for the provided WalletKeys */
   private _genTx = (
-    keys: AccountKey[],
+    userIds: string[],
     outAddress: string | Address,
     outSats: number
   ) => {
     const tx = new Transaction();
     const signingKeys: PrivateKey[] = [];
     try {
-      for (const [ , key ] of keys) {
+      for (const userId of userIds) {
+        const key = this.keys[userId];
         signingKeys.push(key.signingKey);
         for (const utxo of key.utxos) {
           tx.addInput(this._toPKHInput(utxo, key.script));
@@ -344,9 +347,14 @@ export class WalletManager extends EventEmitter {
       for (let i = 0; i < outScripts.length; i++) {
         const scriptHex = outScripts[i];
         // find userId/key matching output scriptHex
-        for (const [ userId, key ] of Object.entries(this.keys)) {
-          const userScriptHex = key.script.toHex();
-          if (userScriptHex != scriptHex) {
+        for (const userIds of Object.values(this.accounts)) {
+          const userId = userIds.find(userId => {
+            const userScriptHex = this.keys[userId].script.toHex();
+            if (scriptHex == userScriptHex) {
+              return true;
+            }
+          })
+          if (!userId) {
             continue;
           }
           // found our userId/key; save utxo
