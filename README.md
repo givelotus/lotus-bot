@@ -18,6 +18,8 @@ Bot for Multiple Social Networking Platforms for Giving/Receiving Lotus to/from 
 
 To run the automated install, paste and execute the following command in your terminal: `curl https://raw.githubusercontent.com/givelotus/lotus-bot/main/install.sh | sudo bash`
 
+After the installation completes, you will need to edit your `/opt/lotus-bot/.env` file to fill in the appropriate values for your platform!
+
 The `install.sh` script will:  
   - Clone this repository to `/opt/lotus-bot` directory
   - Create a new system user with the repository as its `$HOME` folder and ensure proper permissions
