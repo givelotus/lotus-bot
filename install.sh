@@ -1,13 +1,18 @@
 #/bin/bash
 USER=lotus-bot
-HOMEDIR=/opt/lotus-bot
+INSTALLDIR=/opt
+HOMEDIR="$INSTALLDIR/lotus-bot"
 
 # Fail if not root
 if [ $(whoami) != "root" ];
 then
-  echo "Please run this script with: sudo ./install.sh"
+  echo "You must run this script with sudo or as root"
   exit 1
 fi
+
+# Set up and clone the repo
+mkdir -p $INSTALLDIR
+git clone https://github.com/givelotus/lotus-bot.git $HOMEDIR
 
 # Create bot user
 useradd \
@@ -28,5 +33,5 @@ sudo -u $USER npx prisma migrate dev --name init
 sudo -u $USER sqlite3 ./prisma/dev.db 'PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;'
 
 # Install service files
-cp ./install/lotus-bot-*.service /etc/systemd/system
+cp ./install/lotus-bot.service /etc/systemd/system
 systemctl daemon-reload
