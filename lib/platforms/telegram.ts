@@ -306,19 +306,16 @@ implements Platform {
         );
       }
       const chatId = ctx.message.chat.id;
-      const { id: fromId, username: fromUsername } = ctx.message.from;
+      const fromId = ctx.message.from.id;
+      const fromUsername = ctx.message.from.username || 'no username';
       const repliedMessage = <Message>(<any>ctx.message).reply_to_message;
       const toId = repliedMessage?.from?.id;
-      const toUsername = repliedMessage?.from?.username;
+      const toUsername = repliedMessage?.from?.username || 'no username';
       const messageText = <string>(<any>ctx.message).text;
       const command = messageText.split(' ').shift();
       switch (command) {
         case '/give':
-          if (
-            !toId ||
-            !toUsername || 
-            fromId == toId
-          ) {
+          if (!toId || fromId == toId) {
             return await ctx.sendMessage(
               BOT.MESSAGE.ERR_GIVE_MUST_REPLY_TO_USER,
               { reply_to_message_id: replyToMessageId }
