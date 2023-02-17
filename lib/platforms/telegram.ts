@@ -307,10 +307,14 @@ implements Platform {
       }
       const chatId = ctx.message.chat.id;
       const fromId = ctx.message.from.id;
-      const fromUsername = ctx.message.from.username || 'no username';
+      const fromUsername =
+        ctx.message.from.username ||
+        ctx.message.from.first_name;
       const repliedMessage = <Message>(<any>ctx.message).reply_to_message;
       const toId = repliedMessage?.from?.id;
-      const toUsername = repliedMessage?.from?.username || 'no username';
+      const toUsername =
+        repliedMessage?.from?.username ||
+        repliedMessage?.from?.first_name;
       const messageText = <string>(<any>ctx.message).text;
       const command = messageText.split(' ').shift();
       switch (command) {
