@@ -7,8 +7,7 @@ export const Platforms = {
   twitter: Twitter,
   discord: Discord
 };
-export type PlatformName = 'telegram' | 'twitter' | 'discord';
-export type PlatformDatabaseTable = 'userTelegram' | 'userTwitter' | 'userDiscord';
+export type PlatformName = keyof typeof Platforms;
 export type PlatformMessage =
   | TelegramMessage
   | TwitterMessage
