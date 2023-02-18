@@ -58,22 +58,37 @@ export interface Platform {
     secret: string | undefined,
     message?: PlatformMessage
   ) => void): this;
+  /**
+   * Send reply to the `balance` command to `platformId`  
+   * Optionally use the `PlatformMessage` object to send reply
+   */
   sendBalanceReply: (
     platformId: string,
     balance: string,
     message?: PlatformMessage
    ) => Promise<void>;
+   /**
+    * Send reply to the `deposit` command to `platformId`  
+    * Optionally use the `PlatformMessage` object to send reply
+    */
   sendDepositReply: (
     platformId: string,
     address: string,
     message?: PlatformMessage
   ) => Promise<void>;
+  /**
+   * Send notification to `platformId` when new deposit received in Chronik API
+   */
   sendDepositReceived: (
     platformId: string,
     txid: string,
     amount: string,
     balance: string
   ) => Promise<void>;
+  /**
+   * Send reply to the `give` command to `chatId`  
+   * Optionally use the `PlatformMessage` object to send reply
+   */
   sendGiveReply: (
     chatId: string,
     replyToMessageId: number,
@@ -83,6 +98,10 @@ export interface Platform {
     amount: string,
     message?: PlatformMessage
   ) => Promise<void>;
+  /**
+   * Send reply to the `withdraw` command to `platformId`  
+   * Optionally use the `PlatformMessage` object to send reply
+   */
   sendWithdrawReply: (
     platformId: string,
     {
@@ -96,6 +115,10 @@ export interface Platform {
     },
     message?: PlatformMessage
   ) => Promise<void>;
+  /**
+   * Send reply to the `balance` command to `platformId`  
+   * Optionally use the `PlatformMessage` object to send reply
+   */
   sendLinkReply: (
     platformId: string,
     { error, secret }: { error?: string, secret?: string },
