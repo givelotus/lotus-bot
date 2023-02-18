@@ -188,7 +188,7 @@ export default class LotusBot {
       );
       this._log(
         platform,
-        `${platformId}: user notified of balance: ${balance} sats`
+        `${platformId}: balance: ${balance} sats: user notified`
       );
     } catch (e: any) {
       throw new Error(`_handleBalanceCommand: ${e.message}`);
@@ -207,7 +207,7 @@ export default class LotusBot {
       await this.bots[platform].sendDepositReply(platformId, address, message);
       this._log(platform, `${platformId}: deposit: address sent to user`);
     } catch (e: any) {
-      throw new Error(`_platformHandleDeposit: ${e.message}`);
+      throw new Error(`_handleDepositCommand: ${e.message}`);
     }
   };
 
@@ -294,7 +294,7 @@ export default class LotusBot {
         this._logPlatformNotifyError(platform, msg, e.message);
       }
     } catch (e: any) {
-      throw new Error(`_platformHandleGive: ${e.message}`);
+      throw new Error(`_handleGiveCommand: ${e.message}`);
     }
   };
 
@@ -413,7 +413,7 @@ export default class LotusBot {
         );
         this._log(
           platform,
-          msg + `user notified: ${outSats} sats: ${tx.txid}`
+          msg + `success: user notified`
         );
       } catch (e: any) {
         this._logPlatformNotifyError(platform, msg, e.message);
