@@ -562,12 +562,12 @@ export default class LotusBot {
         timestamp: new Date()
       });
       this._log(DB, `deposit saved: ${JSON.stringify(utxo)}`);
-      for (const [platform, platformUser] of Object.entries(deposit.user)) {
-        const platformId = platformUser?.id;
-        if (!platformId) {
+      for (const [ platform, user ] of Object.entries(deposit.user)) {
+        if (typeof user == 'string' || !user) {
           continue;
         }
-        const { accountId} = await this.prisma.getIds(platform, platformId);
+        const platformId = user.id;
+        const { accountId } = deposit.user;
         const balance = await this.wallets.getAccountBalance(accountId);
         // try to notify user of deposit received
         try {

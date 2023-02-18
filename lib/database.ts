@@ -230,6 +230,7 @@ export class Database {
         data,
         select: { user: {
           select: {
+            accountId: true,
             telegram: true,
             twitter: true,
             discord: true
