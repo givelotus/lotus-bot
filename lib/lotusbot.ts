@@ -576,16 +576,17 @@ export default class LotusBot {
         timestamp: new Date()
       });
       this._log(DB, `deposit saved: ${JSON.stringify(utxo)}`);
-      for (const [ platform, user ] of Object.entries(deposit.user)) {
+      for (const [ platformName, user ] of Object.entries(deposit.user)) {
         if (typeof user == 'string' || !user) {
           continue;
         }
+        const platform = platformName as PlatformName;
         const platformId = user.id;
         const { accountId } = deposit.user;
         const balance = await this.wallets.getAccountBalance(accountId);
         // try to notify user of deposit received
         try {
-          await this.bots[platform as PlatformName].sendDepositReceived(
+          await this.bots[platform].sendDepositReceived(
             platformId,
             utxo.txid,
             Util.toXPI(utxo.value),
@@ -596,14 +597,10 @@ export default class LotusBot {
             `${platformId}: user notified of deposit received: ${utxo.txid}`
           );
         } catch (e: any) {
-          this._log(
-            platform,
-            `failed to notify user of deposit received: ${e.message}`
-          );
+          this._logPlatformNotifyError(platform, '_saveDeposit:', e.message);
         }
         break;
       }
-      // const platformId = deposit.user[this.platform.toLowerCase()].id;
     } catch (e: any) {
       throw new Error(`_saveDeposit: ${e.message}`);
     }
