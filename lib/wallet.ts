@@ -103,12 +103,16 @@ export class WalletManager extends EventEmitter {
     accountId: string
   ) => {
     let sats = 0;
-    for (const userId of this.accounts[accountId]) {
-      // Validate the utxos of this WalletKey; discards invalid utxos
-      await this._reconcileUtxos(userId);
-      this.keys[userId].utxos.forEach(utxo => sats += Number(utxo.value));
+    try {
+      for (const userId of this.accounts[accountId]) {
+        // Validate the utxos of this WalletKey; discards invalid utxos
+        await this._reconcileUtxos(userId);
+        this.keys[userId].utxos.forEach(utxo => sats += Number(utxo.value));
+      }
+      return sats;
+    } catch (e: any) {
+      throw new Error(`getAccountBalance: ${e.message}`);
     }
-    return sats;
   };
   /** Return the XAddress of the `WalletKey` of `userId` */
   getXAddress = (userId: string) => this.keys[userId].address.toXAddress();
