@@ -555,10 +555,14 @@ export default class LotusBot {
     platform: PlatformName,
     platformId: string,
   ) => {
-    const isValidUser = await this.prisma.isValidUser(platform, platformId);
-    return !isValidUser
-      ? await this._saveAccount(platform, platformId)
-      : await this.prisma.getIds(platform, platformId);
+    try {
+      const isValidUser = await this.prisma.isValidUser(platform, platformId);
+      return !isValidUser
+        ? await this._saveAccount(platform, platformId)
+        : await this.prisma.getIds(platform, platformId);
+    } catch (e: any) {
+      throw new Error(`_checkAccountValid: ${e.message}`);
+    }
   };
 
   private _saveDeposit = async (
