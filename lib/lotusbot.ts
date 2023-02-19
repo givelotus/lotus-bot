@@ -57,8 +57,7 @@ export default class LotusBot {
       await this._initBots();
       await this._initReconcileDeposits();
     } catch (e: any) {
-      this._log(MAIN, `init: ${e.message}`);
-      this._log(MAIN, 'shutting down');
+      this._log(MAIN, `FATAL: init: ${e.message}`);
       await this._shutdown();
     }
     // Set up event handlers once we are ready
@@ -152,7 +151,7 @@ export default class LotusBot {
   /** Shutdown all submodules */
   private _shutdown = async () => {
     console.log();
-    this._log(`process`, `shutting down`);
+    this._log(MAIN, 'shutting down');
     /** Shutdown enabled platforms */
     for (const [ name ] of this.platforms) {
       await this.bots[name].stop();
@@ -168,7 +167,8 @@ export default class LotusBot {
     try {
       await this._saveDeposit(utxo);
     } catch (e: any) {
-      throw new Error(`_handleUtxoAddedToMempool: ${e.message}`);
+      this._log(MAIN, `FATAL: _handleUtxoAddedToMempool: ${e.message}`);
+      await this._shutdown();
     }
   };
 
@@ -194,7 +194,8 @@ export default class LotusBot {
         this._logPlatformNotifyError(platform, msg, e.message);
       }
     } catch (e: any) {
-      throw new Error(`_handleBalanceCommand: ${e.message}`);
+      this._log(MAIN, `FATAL: _handleBalanceCommand: ${e.message}`);
+      await this._shutdown();
     }
   };
   /** Gather user's address and send back to user as reply to their message */
@@ -216,7 +217,8 @@ export default class LotusBot {
         this._logPlatformNotifyError(platform, msg, e.message);
       }
     } catch (e: any) {
-      throw new Error(`_handleDepositCommand: ${e.message}`);
+      this._log(MAIN, `FATAL: _handleDepositCommand: ${e.message}`);
+      await this._shutdown();
     }
   };
 
@@ -303,7 +305,8 @@ export default class LotusBot {
         this._logPlatformNotifyError(platform, msg, e.message);
       }
     } catch (e: any) {
-      throw new Error(`_handleGiveCommand: ${e.message}`);
+      this._log(MAIN, `FATAL: _handleGiveCommand: ${e.message}`);
+      await this._shutdown();
     }
   };
 
@@ -428,7 +431,8 @@ export default class LotusBot {
         this._logPlatformNotifyError(platform, msg, e.message);
       }
     } catch (e: any) {
-      throw new Error(`_handleWithdrawCommand: ${e.message}`);
+      this._log(MAIN, `FATAL: _handleWithdrawCommand: ${e.message}`);
+      await this._shutdown();
     }
   };
 
@@ -504,7 +508,8 @@ export default class LotusBot {
           }
       }
     } catch (e: any) {
-      throw new Error(`_handleLinkCommand: ${e.message}`);
+      this._log(MAIN, `FATAL: _handleLinkCommand: ${e.message}`);
+      await this._shutdown();
     }
   };
   
