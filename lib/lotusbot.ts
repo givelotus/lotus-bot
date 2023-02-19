@@ -178,18 +178,21 @@ export default class LotusBot {
     message?: PlatformMessage
   ) => {
     this._log(platform, `${platformId}: balance command received`);
+    const msg = `${platformId}: balance: `;
     try {
       const { accountId } = await this._checkAccountValid(platform, platformId);
       const balance = await this.wallets.getAccountBalance(accountId);
-      await this.bots[platform].sendBalanceReply(
-        platformId,
-        Util.toXPI(balance),
-        message
-      );
-      this._log(
-        platform,
-        `${platformId}: balance: ${balance} sats: user notified`
-      );
+      // try to notify user of balance
+      try {
+        await this.bots[platform].sendBalanceReply(
+          platformId,
+          Util.toXPI(balance),
+          message
+        );
+        this._log(platform, msg + `${balance} sats: user notified`);
+      } catch (e: any) {
+        this._logPlatformNotifyError(platform, msg, e.message);
+      }
     } catch (e: any) {
       throw new Error(`_handleBalanceCommand: ${e.message}`);
     }
@@ -200,12 +203,18 @@ export default class LotusBot {
     platformId: string,
     message?: PlatformMessage
   ) => {
+    this._log(platform, `${platformId}: deposit command received`);
+    const msg = `${platformId}: deposit: `;
     try {
-      this._log(platform, `${platformId}: deposit command received`);
       const { userId } = await this._checkAccountValid(platform, platformId);
       const address = this.wallets.getXAddress(userId);
-      await this.bots[platform].sendDepositReply(platformId, address, message);
-      this._log(platform, `${platformId}: deposit: address sent to user`);
+      // try to notify user of deposit address
+      try {
+        await this.bots[platform].sendDepositReply(platformId, address, message);
+        this._log(platform, msg + `${address}: user notified`);
+      } catch (e: any) {
+        this._logPlatformNotifyError(platform, msg, e.message);
+      }
     } catch (e: any) {
       throw new Error(`_handleDepositCommand: ${e.message}`);
     }
