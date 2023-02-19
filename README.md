@@ -5,35 +5,32 @@ Bot for Multiple Social Networking Platforms for Giving/Receiving Lotus to/from 
 ## Current Build Tests
 *Continuous Testing & Integration not implemented yet*
 
-## Stable Releases
-
-[Grab Stable Releases Here](https://github.com/givelotus/lotus-bot/releases)
-
-Otherwise, you can clone this repo for pre-release development
-
 ## Requirements
 
 - NodeJS 18.x (Recommend NodeJS repository for latest security updates: https://nodejs.org/en/download/package-manager/) (For Windows Admins: Make sure NodeJS is installed to the system $PATH)
-- TypeScript ^4.x (Installed during `npm install`) (For Windows Admins: Install this manually & globally)
+- TypeScript ^4.x (Installed during `npm install`) (For Windows Admins: Install this manually & globally - `npm install -g typescript`)
 - Prisma ^4.8.x (Installed during `npm install`)
 - sqlite3 package (Optional, Linux Only)
 
-## Automatic Installation
+## Automatic Installation - Linux
 
-(Linux Only)
+**IMPORTANT**: You will need to install `git` and `sqlite3` on your system
 
-### Install Script
+To run the automated install, paste and execute the following command in your terminal: `curl https://raw.githubusercontent.com/givelotus/lotus-bot/main/install.sh | sudo bash`
 
-Note: install.sh was written to be run on OpenSUSE / Ubuntu compatible systems. Modifications might be required to run.
+After the installation completes, you will need to edit your `/opt/lotus-bot/.env` file to fill in the appropriate values for your platform!
 
-Running the installation script will:  
-  - Install the NPM dependencies
+The `install.sh` script will:  
+  - Clone this repository to `/opt/lotus-bot` directory
+  - Create a new system user with the repository as its `$HOME` folder and ensure proper permissions
+  - Create the `.env` config file
+  - Install NPM dependencies
   - Set up Prisma and sqlite3 database
-  - Install systemd services for the different platforms (e.g. Telegram, Twitter, etc.)
+  - Install systemd service
 
 ## Manual Install
 
-In some cases manual install may be required for various reasons, manual install steps are provided below.
+If you prefer to not run the Automatic Install, or if you are running Windows, follow the below prcoedure.
 
 ### Install (Linux)
 
@@ -49,22 +46,26 @@ In some cases manual install may be required for various reasons, manual install
 npx prisma migrate dev --name init
 sqlite3 ./prisma/dev.db 'PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;'
 ```
-9. systemd is supported, you can install the service unit files from the `install/` folder:
+9. systemd is supported, you can install the service unit from the `install/` folder:
 ```
-sudo cp ./install/lotus-bot-*.service /etc/systemd/system
+sudo cp ./install/lotus-bot.service /etc/systemd/system
 sudo systemctl daemon-reload
 ```
 
 ### Install (Windows)
 
-1. Install typescript globally: `npm install typescript -g` (This will require Administrator Rights)
+1. Install typescript globally: `npm install -g typescript` (This will require Administrator Rights)
 2. Setup a folder to hold the repo, example: `C:\Lotus\lotus-bot`
 3. Clone the repo into said folder: `git clone https://github.com/givelotus/lotus-bot.git C:\Lotus\lotus-bot`
 4. Open the folder in cmd or PowerShell
 5. Then `copy .env.example .env`
 6. Modify `.env` with the required API key(s) for the bot(s) you want to run.
 7. Install dependencies: `npm install`
-8. Initialize the Database: `npx prisma migrate dev --name init`
+8. Initialize the Database:
+```
+npx prisma migrate dev --name init
+sqlite3 ./prisma/dev.db 'PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;'
+```
 
 ### Install (Mac)
 
@@ -72,21 +73,17 @@ sudo systemctl daemon-reload
 
 ## Runtime Notes
 
-Notes for using the bot in it's specific social network or social area.
+### Default Platform Commands
 
-### Default Commands for [Twitter, Telegram, & Discord]
-
-Commands required for all bots. These commands are for the user-space. These commands are not administrative in nature.
+These commands are for the user-space; they are not administrative in nature.
 
 ```
-balance .......... Get the XPI Balance of the current user.
-deposit .......... Start deposit with QR or lotus_ address.
-withdraw ......... Start withdraw to external wallet.
-give    .......... Give XPI to mentioned user.
-link    .......... Link accounts across platforms on the same bot.
+balance .......... Check your Lotus balance
+deposit .......... Deposit Lotus to your account
+withdraw ......... Withdraw Lotus to your wallet address
+link    .......... Connect platform accounts to share a wallet balance
+give    .......... Give Lotus to another user
 ```
-
-## Runtime Notes
 
 ### On-Chain Giving
 
@@ -98,9 +95,11 @@ We require the sqlite3 package in order to enable Write-Ahead Logging (WAL) on t
 
 More information about WAL can be found [here](https://www.sqlite.org/wal.html)
 
+**NOTE**: Since v2.0.0, WAL is no longer required, but the PRAGMA changes are still part of the install for helping ensure database integrity.
+
 **WAL is enabled by default with Prisma on Windows[?]**
 
 ### Support / Questions
 
-Reach out to `@maff1989` on Telegram & `maff1989#2504` Discord if you have any questions, run into issues, or need help with setup.
-
+Telegram: `@maff1989`  
+Discord: `maff1989#2504`

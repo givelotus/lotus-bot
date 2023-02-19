@@ -255,13 +255,13 @@ implements Platform {
           const [ wAmount, wAddress ] = parseWithdraw(messageText);
           if (!wAmount || !wAddress) {
             return ctx.sendMessage(
-              `Syntax: \`/withdraw <amount> <address>\``,
+              `Syntax: \`/withdraw amount address\`\r\n`,
               { parse_mode: 'Markdown' }
             );
           }
           if (Number(wAmount) <= 0) {
             return ctx.sendMessage(
-              `Invalid amount \`wAmount\` specified.`,
+              `Invalid amount specified.`,
               { parse_mode: 'Markdown' }
             );
           }

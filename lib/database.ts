@@ -1,5 +1,4 @@
 import { PrismaClient } from "../prisma/prisma-client-js";
-import { PlatformDatabaseTable } from "./platforms";
 import { AccountUtxo } from "./wallet";
 
 type Deposit = AccountUtxo & {
@@ -231,6 +230,7 @@ export class Database {
         data,
         select: { user: {
           select: {
+            accountId: true,
             telegram: true,
             twitter: true,
             discord: true
@@ -295,7 +295,7 @@ export class Database {
 
   private _toPlatformTable = (
     platform: string
-  ): PlatformDatabaseTable => {
+  ) => {
     switch (platform) {
       case 'telegram':
         return `userTelegram`;

@@ -57,8 +57,7 @@ export default class LotusBot {
       await this._initBots();
       await this._initReconcileDeposits();
     } catch (e: any) {
-      this._log(MAIN, `init: ${e.message}`);
-      this._log(MAIN, 'shutting down');
+      this._log(MAIN, `FATAL: init: ${e.message}`);
       await this._shutdown();
     }
     // Set up event handlers once we are ready
@@ -152,7 +151,7 @@ export default class LotusBot {
   /** Shutdown all submodules */
   private _shutdown = async () => {
     console.log();
-    this._log(`process`, `shutting down`);
+    this._log(MAIN, 'shutting down');
     /** Shutdown enabled platforms */
     for (const [ name ] of this.platforms) {
       await this.bots[name].stop();
@@ -168,7 +167,8 @@ export default class LotusBot {
     try {
       await this._saveDeposit(utxo);
     } catch (e: any) {
-      throw new Error(`_handleUtxoAddedToMempool: ${e.message}`);
+      this._log(MAIN, `FATAL: _handleUtxoAddedToMempool: ${e.message}`);
+      await this._shutdown();
     }
   };
 
@@ -178,20 +178,24 @@ export default class LotusBot {
     message?: PlatformMessage
   ) => {
     this._log(platform, `${platformId}: balance command received`);
+    const msg = `${platformId}: balance: `;
     try {
       const { accountId } = await this._checkAccountValid(platform, platformId);
       const balance = await this.wallets.getAccountBalance(accountId);
-      await this.bots[platform].sendBalanceReply(
-        platformId,
-        Util.toXPI(balance),
-        message
-      );
-      this._log(
-        platform,
-        `${platformId}: user notified of balance: ${balance} sats`
-      );
+      // try to notify user of balance
+      try {
+        await this.bots[platform].sendBalanceReply(
+          platformId,
+          Util.toXPI(balance),
+          message
+        );
+        this._log(platform, msg + `${balance} sats: user notified`);
+      } catch (e: any) {
+        this._logPlatformNotifyError(platform, msg, e.message);
+      }
     } catch (e: any) {
-      throw new Error(`_handleBalanceCommand: ${e.message}`);
+      this._log(MAIN, `FATAL: _handleBalanceCommand: ${e.message}`);
+      await this._shutdown();
     }
   };
   /** Gather user's address and send back to user as reply to their message */
@@ -200,14 +204,21 @@ export default class LotusBot {
     platformId: string,
     message?: PlatformMessage
   ) => {
+    this._log(platform, `${platformId}: deposit command received`);
+    const msg = `${platformId}: deposit: `;
     try {
-      this._log(platform, `${platformId}: deposit command received`);
       const { userId } = await this._checkAccountValid(platform, platformId);
       const address = this.wallets.getXAddress(userId);
-      await this.bots[platform].sendDepositReply(platformId, address, message);
-      this._log(platform, `${platformId}: deposit: address sent to user`);
+      // try to notify user of deposit address
+      try {
+        await this.bots[platform].sendDepositReply(platformId, address, message);
+        this._log(platform, msg + `${address}: user notified`);
+      } catch (e: any) {
+        this._logPlatformNotifyError(platform, msg, e.message);
+      }
     } catch (e: any) {
-      throw new Error(`_platformHandleDeposit: ${e.message}`);
+      this._log(MAIN, `FATAL: _handleDepositCommand: ${e.message}`);
+      await this._shutdown();
     }
   };
 
@@ -294,7 +305,8 @@ export default class LotusBot {
         this._logPlatformNotifyError(platform, msg, e.message);
       }
     } catch (e: any) {
-      throw new Error(`_platformHandleGive: ${e.message}`);
+      this._log(MAIN, `FATAL: _handleGiveCommand: ${e.message}`);
+      await this._shutdown();
     }
   };
 
@@ -413,13 +425,14 @@ export default class LotusBot {
         );
         this._log(
           platform,
-          msg + `user notified: ${outSats} sats: ${tx.txid}`
+          msg + `success: user notified`
         );
       } catch (e: any) {
         this._logPlatformNotifyError(platform, msg, e.message);
       }
     } catch (e: any) {
-      throw new Error(`_handleWithdrawCommand: ${e.message}`);
+      this._log(MAIN, `FATAL: _handleWithdrawCommand: ${e.message}`);
+      await this._shutdown();
     }
   };
 
@@ -495,7 +508,8 @@ export default class LotusBot {
           }
       }
     } catch (e: any) {
-      throw new Error(`_handleLinkCommand: ${e.message}`);
+      this._log(MAIN, `FATAL: _handleLinkCommand: ${e.message}`);
+      await this._shutdown();
     }
   };
   
@@ -541,10 +555,14 @@ export default class LotusBot {
     platform: PlatformName,
     platformId: string,
   ) => {
-    const isValidUser = await this.prisma.isValidUser(platform, platformId);
-    return !isValidUser
-      ? await this._saveAccount(platform, platformId)
-      : await this.prisma.getIds(platform, platformId);
+    try {
+      const isValidUser = await this.prisma.isValidUser(platform, platformId);
+      return !isValidUser
+        ? await this._saveAccount(platform, platformId)
+        : await this.prisma.getIds(platform, platformId);
+    } catch (e: any) {
+      throw new Error(`_checkAccountValid: ${e.message}`);
+    }
   };
 
   private _saveDeposit = async (
@@ -562,16 +580,17 @@ export default class LotusBot {
         timestamp: new Date()
       });
       this._log(DB, `deposit saved: ${JSON.stringify(utxo)}`);
-      for (const [platform, platformUser] of Object.entries(deposit.user)) {
-        const platformId = platformUser?.id;
-        if (!platformId) {
+      for (const [ platformName, user ] of Object.entries(deposit.user)) {
+        if (typeof user == 'string' || !user) {
           continue;
         }
-        const { accountId} = await this.prisma.getIds(platform, platformId);
+        const platform = platformName as PlatformName;
+        const platformId = user.id;
+        const { accountId } = deposit.user;
         const balance = await this.wallets.getAccountBalance(accountId);
         // try to notify user of deposit received
         try {
-          await this.bots[platform as PlatformName].sendDepositReceived(
+          await this.bots[platform].sendDepositReceived(
             platformId,
             utxo.txid,
             Util.toXPI(utxo.value),
@@ -582,14 +601,10 @@ export default class LotusBot {
             `${platformId}: user notified of deposit received: ${utxo.txid}`
           );
         } catch (e: any) {
-          this._log(
-            platform,
-            `failed to notify user of deposit received: ${e.message}`
-          );
+          this._logPlatformNotifyError(platform, '_saveDeposit:', e.message);
         }
         break;
       }
-      // const platformId = deposit.user[this.platform.toLowerCase()].id;
     } catch (e: any) {
       throw new Error(`_saveDeposit: ${e.message}`);
     }
