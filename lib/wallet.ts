@@ -225,18 +225,18 @@ export class WalletManager extends EventEmitter {
         if (tx.inputAmount < outSats) {
           continue;
         }
+        tx.feePerByte(config.tx.feeRate);
+        // Set current key's address as change address
+        tx.change(key.address);
         const outScript = this._getScriptFromAddress(outAddress);
-        tx.addOutput(this._toOutput(outSats, outScript));
-        // Adjust output amount to accommodate fees if no extra XPI available
-        if (tx.inputAmount == outSats) {
-          const sats = outSats - (tx._estimateSize() * config.tx.feeRate);
-          tx.removeOutput(0);
-          tx.addOutput(this._toOutput(sats, outScript));
-        } else {
-          tx.feePerByte(config.tx.feeRate);
-          // Set current key's address as change address
-          tx.change(key.address);
-        }
+        const txFee = tx._estimateSize() * config.tx.feeRate;
+        tx.addOutput(
+          this._toOutput(
+            // subtract fee from output amount if required
+            outSats + txFee > tx.inputAmount ? outSats - txFee : outSats,
+            outScript
+          )
+        );
         tx.sign(signingKeys);
         const verified = tx.verify();
         switch (typeof verified) {
