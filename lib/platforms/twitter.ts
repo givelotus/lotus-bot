@@ -52,4 +52,8 @@ implements Platform {
   ) => {
 
   };
+  sendBackupReply: (
+    platformId: string,
+    mnemonic: string,
+  ) => Promise<void>;
 };
