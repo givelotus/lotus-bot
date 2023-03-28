@@ -522,6 +522,7 @@ export default class LotusBot {
     const msg = `${platformId}: backup: `;
     this._log(platform, `${platformId}: backup command received`);
     try {
+      await this._checkAccountValid(platform, platformId);
       const mnemonic = await this.prisma.getUserMnemonic(platform, platformId);
       try {
         await this.bots[platform].sendBackupReply(platformId, mnemonic, message);
