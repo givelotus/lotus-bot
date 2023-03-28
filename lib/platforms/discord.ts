@@ -126,6 +126,10 @@ implements Platform {
         ],
       },
       {
+        name: 'backup',
+        description: 'Back up the seed phrase for this platform'
+      },
+      {
         name: 'ping',
         description: 'pong'
       },
