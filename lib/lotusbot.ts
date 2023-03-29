@@ -3,7 +3,7 @@ import {
   PlatformName,
   PlatformMessage,
   Platform,
-} from './platforms'
+} from './platforms';
 import * as Util from '../util';
 import config from '../config';
 import { TRANSACTION } from '../util/constants';
@@ -520,7 +520,7 @@ export default class LotusBot {
     message?: PlatformMessage
   ) => {
     const msg = `${platformId}: backup: `;
-    this._log(platform, `${platformId}: backup command received`);
+    this._log(platform, msg + `command received`);
     try {
       const { userId } = await this._checkAccountValid(platform, platformId);
       const mnemonic = await this.prisma.getUserMnemonic(userId);
