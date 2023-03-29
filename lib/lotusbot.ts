@@ -68,7 +68,8 @@ export default class LotusBot {
       this.bots[name].on('Give', this._handleGiveCommand);
       this.bots[name].on('Withdraw', this._handleWithdrawCommand);
       this.bots[name].on('Link', this._handleLinkCommand);
-    })
+      this.bots[name].on('Backup', this._handleBackupCommand);
+    });
     this._log(MAIN, "service initialized successfully");
   };
   /**
@@ -509,6 +510,28 @@ export default class LotusBot {
       }
     } catch (e: any) {
       this._log(MAIN, `FATAL: _handleLinkCommand: ${e.message}`);
+      await this._shutdown();
+    }
+  };
+
+  private _handleBackupCommand = async (
+    platform: PlatformName,
+    platformId: string,
+    message?: PlatformMessage
+  ) => {
+    const msg = `${platformId}: backup: `;
+    this._log(platform, `${platformId}: backup command received`);
+    try {
+      const { userId } = await this._checkAccountValid(platform, platformId);
+      const mnemonic = await this.prisma.getUserMnemonic(userId);
+      try {
+        await this.bots[platform].sendBackupReply(platformId, mnemonic, message);
+        this._log(platform, msg + `user notified`);
+      } catch (e: any) {
+        return this._logPlatformNotifyError(platform, msg, e.message)
+      }
+    } catch (e: any) {
+      this._log(MAIN, `FATAL: _handleBackupCommand: ${e.message}`);
       await this._shutdown();
     }
   };

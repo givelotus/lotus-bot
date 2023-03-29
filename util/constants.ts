@@ -40,6 +40,13 @@ export const BOT = {
       `command and I will link your accounts together.`,
     LINK_OK: `Your accounts have now been linked! `,
     LINK_FAIL: `There was an error linking your account: %s`,
+    BACKUP:
+      `Your seed phrase is: \`%s\`\r\n\r\n` +
+      `WARNING: If you have linked platform accounts, then the balance in ` +
+      `this wallet may not reflect your total account balance. If you send ` +
+      `Lotus from this wallet, it WILL be reflected in your total account ` +
+      `balance. If you send Lotus to this wallet, you will receive a deposit ` +
+      `notification.`
   },
 };
 

@@ -126,6 +126,10 @@ implements Platform {
         ],
       },
       {
+        name: 'backup',
+        description: 'Back up the seed phrase for this platform'
+      },
+      {
         name: 'ping',
         description: 'pong'
       },
@@ -292,6 +296,22 @@ implements Platform {
       throw new Error(`sendLinkReply: ${e.message}`);
     }
   };
+
+  sendBackupReply = async (
+    platformId: string,
+    mnemonic: string,
+    interaction: DiscordMessage
+  ) => {
+    try {
+      await interaction.reply({
+        content: format(BOT.MESSAGE.BACKUP, mnemonic),
+        ephemeral: true
+      });
+    } catch (e: any) {
+      throw new Error(`sendBackupReply: ${e.message}`);
+    }
+  };
+
   private _registerCommands = async (guildId: string) => {
     try {
       await this.client.rest.put(
@@ -345,13 +365,17 @@ implements Platform {
       case 'link':
         this.emit('Link', 'discord', author.id, secret, message);
         break;
+      case 'backup':
+        this.emit('Backup', 'discord', author.id, message);
+        break;
       default:
         message.reply(
           `You can only use the following verbs in my DMs:\r\n\r\n` +
           `**balance** - Get your current balance in the bot.\r\n` +
           `**deposit** - Get the address needed to deposit XPI.\r\n` +
           `**withdraw** - Withdraw XPI to an external wallet.\r\n` +
-          '**link** - Link to another account/platform\r\n\r\n' +
+          '**link** - Link to another account/platform\r\n' +
+          `**backup** - Get the seed phrase of your bot wallet\r\n\r\n` +
           "withdraw command syntax: `withdraw <amount> <external_address>`\r\n" +
           "link command syntax:\r\n" +
           "```link <secret code> - Link using code from other acocunt\r\n" +
@@ -448,6 +472,9 @@ implements Platform {
         case 'link':
           const secret = options.getString('secret') || undefined;
           this.emit('Link', 'discord', platformId, secret, interaction);
+          break;
+        case 'backup':
+          this.emit('Backup', 'discord', platformId, interaction);
           break;
         case "ping":
           await interaction.reply({ content: `Pong! 🏓` });

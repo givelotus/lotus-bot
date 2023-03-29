@@ -63,6 +63,7 @@ implements Platform {
     this.bot.command('deposit', this._handleDirectMessage);
     this.bot.command('withdraw', this._handleDirectMessage);
     this.bot.command('link', this._handleDirectMessage);
+    this.bot.command('backup', this._handleDirectMessage);
     this.bot.start(this._handleDirectMessage);
   };
   launch = async () => {
@@ -235,6 +236,23 @@ implements Platform {
     }
   };
 
+  sendBackupReply = async (
+    platformId: string,
+    mnemonic: string
+  ) => {
+    try {
+      await setTimeout(this._calcReplyDelay());
+      await this.bot.telegram.sendMessage(
+        platformId,
+        format(BOT.MESSAGE.BACKUP, mnemonic),
+        { parse_mode: 'Markdown' }
+      );
+      this.lastReplyTime = Date.now();
+    } catch (e: any) {
+      throw new Error(`sendBackupReply: ${e.message}`);
+    }
+  };
+
   private _handleDirectMessage = async (
     ctx: TelegramMessage
   ) => {
@@ -277,6 +295,8 @@ implements Platform {
         case '/link':
           const secret = parseLink(messageText);
           return this.emit('Link', 'telegram', platformId, secret);
+        case '/backup':
+          return this.emit('Backup', 'telegram', platformId);
         case '/start':
           return ctx.sendMessage(
             `Welcome to my home! ` +

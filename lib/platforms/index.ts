@@ -58,6 +58,11 @@ export interface Platform {
     secret: string | undefined,
     message?: PlatformMessage
   ) => void): this;
+  on(event: 'Backup', callback: (
+    platform: PlatformName,
+    platformId: string,
+    message?: PlatformMessage
+  ) => void): this;
   /**
    * Send reply to the `balance` command to `platformId`  
    * Optionally use the `PlatformMessage` object to send reply
@@ -122,6 +127,15 @@ export interface Platform {
   sendLinkReply: (
     platformId: string,
     { error, secret }: { error?: string, secret?: string },
+    message?: PlatformMessage
+  ) => Promise<void>;
+  /**
+   * Send reply to the `backup` command to `platformId`  
+   * Optionally use the `PlatformMessage` object to send reply
+   */
+  sendBackupReply: (
+    platformId: string,
+    mnemonic: string,
     message?: PlatformMessage
   ) => Promise<void>;
 };

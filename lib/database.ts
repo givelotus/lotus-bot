@@ -154,6 +154,21 @@ export class Database {
       throw new Error(`getUserSecret: ${e.message}`);
     }
   };
+  getUserMnemonic = async (
+    userId: string
+  ) => {
+    try {
+      const result = await this.prisma.user.findFirst({
+        where: { id: userId },
+        select: { key: { 
+          select: { mnemonic: true }
+        }}
+      });
+      return result.key.mnemonic
+    } catch (e: any) {
+      throw new Error(`getUserMnemonic: ${e.message}`);
+    }
+  };
   /**
    * Save new `Account` to the database  
    * Also saves all associated data (e.g. Platform, WalletKey, etc.)
