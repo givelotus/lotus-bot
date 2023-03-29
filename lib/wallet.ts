@@ -200,7 +200,7 @@ export class WalletManager extends EventEmitter {
       const broadcasted = await this.chronik.broadcastTx(txBuf);
       return broadcasted.txid;
     } catch (e: any) {
-      throw new Error(`_broadcastTx: ${e.message}`);
+      throw new Error(`broadcastTx: ${e.message}`);
     }
   };
   /** Generate transaction for the provided WalletKeys */
@@ -262,7 +262,7 @@ export class WalletManager extends EventEmitter {
         && existing.outIdx == utxo.outIdx
     });
   }
-  /** Fetch UTXOs from Chronik API for provided `WalletKey` */
+  /** Fetch UTXOs from Chronik API for provided script data */
   private _fetchUtxos = async (
     scriptType: ScriptType,
     scriptHex: string,
@@ -355,7 +355,7 @@ export class WalletManager extends EventEmitter {
             if (scriptHex == userScriptHex) {
               return true;
             }
-          })
+          });
           if (!userId) {
             continue;
           }

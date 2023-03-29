@@ -3,7 +3,7 @@ import {
   PlatformName,
   PlatformMessage,
   Platform,
-} from './platforms'
+} from './platforms';
 import * as Util from '../util';
 import config from '../config';
 import { TRANSACTION } from '../util/constants';
