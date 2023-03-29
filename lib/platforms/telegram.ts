@@ -300,8 +300,8 @@ implements Platform {
         case '/start':
           return ctx.sendMessage(
             `Welcome to my home! ` +
-          `I can help you deposit Lotus and give Lotus to other users.\r\n\r\n` +
-          `Please see the Menu for available commands.`
+            `I can help you deposit Lotus and give Lotus to other users.\r\n\r\n` +
+            `Please see the Menu for available commands.`
           );
         default:
           return ctx.sendMessage(
