@@ -155,20 +155,16 @@ export class Database {
     }
   };
   getUserMnemonic = async (
-    platform: string,
-    platformId: string
+    userId: string
   ) => {
-    const platformTable = this._toPlatformTable(platform);
     try {
-      const result = await this.prisma[platformTable].findFirst({
-        where: { id: platformId },
-        select: { user: {
-          select: { key: {
-            select: { mnemonic: true }
-          }}
+      const result = await this.prisma.user.findFirst({
+        where: { id: userId },
+        select: { key: { 
+          select: { mnemonic: true }
         }}
       });
-      return result.user.key.mnemonic;
+      return result.key.mnemonic
     } catch (e: any) {
       throw new Error(`getUserMnemonic: ${e.message}`);
     }
