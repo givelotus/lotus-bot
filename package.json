@@ -1,6 +1,6 @@
 {
   "name": "lotus-bot",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Chat bot for social media to use for giving Lotus XPI to other people",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
