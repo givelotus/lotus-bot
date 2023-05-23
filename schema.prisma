@@ -11,6 +11,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Fortune {
+  id String @id
+  fortune String @unique
+  category String
+  added_date DateTime
+  used_date DateTime
+}
+
 model Deposit {
   txid String @unique
   outIdx Int
