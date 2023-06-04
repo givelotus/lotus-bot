@@ -12,7 +12,8 @@
     "discord:darwin:linux": "./node_modules/typescript/bin/tsc && CHECKPOINT_DISABLE=1 node index.js Discord",
     "telegram:win32": "tsc && node index.js Telegram",
     "twitter:win32": "tsc && node index.js Twitter",
-    "discord:win32": "tsc && node index.js Discord"
+    "discord:win32": "tsc && node index.js Discord",
+    "fortunes":"./node_modules/typescript/bin/tsc && CHECKPOINT_DISABLE=1 node fortunes.js"
   },
   "author": "maff1989",
   "dependencies": {
@@ -22,6 +23,8 @@
     "chronik-client": "^0.8.1",
     "discord.js": "^14.7.1",
     "dotenv": "^16.0.3",
+    "fs": "^0.0.1-security",
+    "openai": "^3.2.1",
     "telegraf": "^4.11.2",
     "twitter-api-v2": "^1.14.1"
   },

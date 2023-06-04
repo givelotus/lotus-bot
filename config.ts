@@ -17,7 +17,9 @@ type ParsedConfig = {
   tx: {
     feeRate: number
   },
-  dbUrl: string
+  dbUrl: string,
+  openaiKey: string,
+  openaiOrg: string
 };
 
 class Config {
@@ -48,6 +50,8 @@ class Config {
         feeRate: Number(process.env.TX_FEE_RATE)
       },
       dbUrl: process.env.DATABASE_URL,
+      openaiKey: process.env.OPENAI_KEY,
+      openaiOrg: process.env.OPENAI_ORG
     };
   };
 };
