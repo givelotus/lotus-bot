@@ -13,13 +13,13 @@ const openaiconfig = new Configuration({
 const openai = new OpenAIApi(openaiconfig);
 let promptFile: string = '';
 
-const files = fs.readdirSync(path.join(process.cwd(), "fortunes"));
+const files = fs.readdirSync(path.join(process.cwd(), "fortune-prompts"));
 
 let max = files.length - 1;
 let min = 0;
 let index = Math.round(Math.random() * (max - min) + min);
 let file = files[index];
-promptFile = fs.readFileSync(path.join(process.cwd(), "fortunes", file)).toString();
+promptFile = fs.readFileSync(path.join(process.cwd(), "fortune-prompts", file)).toString();
 
 
 getFortunes();
