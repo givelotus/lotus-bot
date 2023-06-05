@@ -6,8 +6,8 @@ import config from './config';
 
 
 const openaiconfig = new Configuration({
-    organization:config.openaiOrg,
-    apiKey: config.openaiKey
+    organization:config.openai.org,
+    apiKey: config.openai.key
 });
 
 const openai = new OpenAIApi(openaiconfig);
