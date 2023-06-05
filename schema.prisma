@@ -16,7 +16,7 @@ model Fortune {
   fortune String @unique
   category String
   added_date DateTime
-  used_date DateTime
+  used_date DateTime?
 }
 
 model Deposit {
