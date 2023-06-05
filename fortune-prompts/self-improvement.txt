@@ -1,4 +1,4 @@
-Can you generate 20 unique fortunes about "self improvement" and output a JSON array of string
+Can you generate 20 unique fortunes about "self improvement" and output a JSON array of strings in the following format:
 
 [
   "Example 1",
