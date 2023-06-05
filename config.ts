@@ -52,8 +52,8 @@ class Config {
         feeRate: Number(process.env.TX_FEE_RATE)
       },
       openai: {
-        org: process.env.OPENAI_KEY,
-        key: process.env.OPENAI_ORG
+        org: process.env.OPENAI_ORG,
+        key: process.env.OPENAI_KEY
       },
       dbUrl: process.env.DATABASE_URL,
     };
