@@ -449,5 +449,7 @@ export class WalletManager extends EventEmitter {
   static isValidAddress = (
     address: string
   ) => Address.isValid(address);
+  static WITHDRAW_CHANGE_OUTIDX = 1;
+  static GIVE_CHANGE_OUTIDX = 1;
 
 };
