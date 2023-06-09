@@ -594,7 +594,12 @@ export default class LotusBot {
     try {
       if (
         await this.prisma.isGiveTx(utxo.txid) ||
-        await this.prisma.isWithdrawTx(utxo.txid)
+        // Accept a withdrawl as a deposit if the outIdx is not the change Idx
+        // Fixes https://github.com/givelotus/lotus-bot/issues/48
+        (
+          await this.prisma.isWithdrawTx(utxo.txid) &&
+          utxo.outIdx == WalletManager.WITHDRAW_CHANGE_OUTIDX
+        )
       ) {
         return;
       }
