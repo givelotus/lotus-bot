@@ -1,4 +1,4 @@
-# lotus-bot v2.2.0
+# lotus-bot v2.2.1
 
 Bot for Multiple Social Networking Platforms for Giving/Receiving Lotus to/from other Users.
 
