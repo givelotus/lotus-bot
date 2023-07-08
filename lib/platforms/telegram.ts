@@ -45,14 +45,12 @@ const escape = (
 ) => text.replace(/(_)/g, "\\$1");
 
 export class Telegram 
-extends EventEmitter
 implements Platform {
   private bot: Telegraf;
   private handler: Handler;
   private lastReplyTime: number;
 
   constructor(handler: Handler) {
-    super();
     this.handler = handler;
     this.lastReplyTime = Date.now();
   }
