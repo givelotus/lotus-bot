@@ -10,6 +10,7 @@ import { BOT } from '../../util/constants';
 import { split } from '../../util';
 import config from '../../config'
 import { Message } from "telegraf/typings/core/types/typegram";
+import { Handler } from "../handler";
 
 export type TelegramMessage = Context;
 
@@ -49,22 +50,24 @@ export class Telegram
 extends EventEmitter
 implements Platform {
   private bot: Telegraf;
+  private handler: Handler;
   private lastReplyTime: number;
 
-  constructor() {
+  constructor(handler: Handler) {
     super();
+    this.handler = handler;
     this.lastReplyTime = Date.now();
   }
 
   setup = async (apiKey: string) => {
     this.bot = new Telegraf(apiKey);
-    this.bot.command('give', this._handleGroupMessage);
-    this.bot.command('balance', this._handleDirectMessage);
-    this.bot.command('deposit', this._handleDirectMessage);
-    this.bot.command('withdraw', this._handleDirectMessage);
-    this.bot.command('link', this._handleDirectMessage);
-    this.bot.command('backup', this._handleDirectMessage);
-    this.bot.start(this._handleDirectMessage);
+    this.bot.command('give', this.handleGroupMessage);
+    this.bot.command('balance', this.handleDirectMessage);
+    this.bot.command('deposit', this.handleDirectMessage);
+    this.bot.command('withdraw', this.handleDirectMessage);
+    this.bot.command('link', this.handleDirectMessage);
+    this.bot.command('backup', this.handleDirectMessage);
+    this.bot.start(this.handleDirectMessage);
   };
   launch = async () => {
     this.bot.launch();
@@ -76,68 +79,6 @@ implements Platform {
     this.bot.stop();
   };
   getBotId = () => this.bot.botInfo?.id.toString();
-  sendGiveReply = async (
-    chatId: string,
-    replyToMessageId: number,
-    fromUsername: string,
-    toUsername: string,
-    txid: string,
-    amount: string,
-  ) => {
-    try {
-      await setTimeout(this._calcReplyDelay());
-      const fromUsernameEscaped = escape(fromUsername);
-      const toUsernameEscaped = escape(toUsername);
-      const msg = format(
-        BOT.MESSAGE.GIVE,
-        fromUsernameEscaped,
-        amount,
-        toUsernameEscaped,
-        `${config.wallet.explorerUrl}/tx/${txid}`
-      );
-      await this.bot.telegram.sendMessage(chatId, msg, {
-        reply_to_message_id: replyToMessageId,
-        parse_mode: 'Markdown'
-      });
-      this.lastReplyTime = Date.now();
-    } catch (e: any) {
-      throw new Error(`sendGiveReply: ${e.message}`);
-    }
-  };
-  /** Send user their balance after calculating in LotusBot class */
-  sendBalanceReply = async (
-    platformId: string,
-    balance: string,
-  ) => {
-    try {
-      await setTimeout(this._calcReplyDelay());
-      const msg = format(BOT.MESSAGE.BALANCE, balance);
-      await this.bot.telegram.sendMessage(platformId, msg);
-      this.lastReplyTime = Date.now();
-    } catch (e: any) {
-      throw new Error(`sendBalanceReply: ${e.message}`);
-    }
-  };
-  /** Send user their address after gathering in LotusBot class */
-  sendDepositReply = async (
-    platformId: string,
-    address: string,
-  ) => {
-    try {
-      await setTimeout(this._calcReplyDelay());
-      const msg = format(
-        BOT.MESSAGE.DEPOSIT,
-        address,
-        `${config.wallet.explorerUrl}/address/${address}`
-      );
-      await this.bot.telegram.sendMessage(platformId, msg,
-        { parse_mode: 'Markdown' }
-      );
-      this.lastReplyTime = Date.now();
-    } catch (e: any) {
-      throw new Error(`sendDepositReply: ${e.message}`)
-    }
-  };
 
   sendDepositReceived = async (
     platformId: string,
@@ -146,7 +87,7 @@ implements Platform {
     balance: string,
   ) => {
     try {
-      await setTimeout(this._calcReplyDelay());
+      await setTimeout(this.calcReplyDelay());
       const msg = format(
         BOT.MESSAGE.DEPOSIT_RECV,
         amount,
@@ -161,100 +102,180 @@ implements Platform {
       throw new Error(`sendDepositReceived: ${e.message}`);
     }
   };
-
-  sendDepositConfirmed = async (
-    platformId: string,
-    txid: string,
-    amount: string,
-    balance: string,
+  
+  private handleBalanceCommand = async (
+    platformId: string
   ) => {
     try {
-      await setTimeout(this._calcReplyDelay());
-      const msg = format(
-        BOT.MESSAGE.DEPOSIT_CONF,
-        amount,
-        balance,
-        `${config.wallet.explorerUrl}/tx/${txid}`
-      )
-      await this.bot.telegram.sendMessage(platformId, msg,
-        { parse_mode: 'Markdown' }
+      const balance = await this.handler.processBalanceCommand(
+        'telegram',
+        platformId
       );
-      this.lastReplyTime = Date.now();
+      const msg = format(BOT.MESSAGE.BALANCE, balance);
+      await setTimeout(this.calcReplyDelay());
+      await this.bot.telegram.sendMessage(platformId, msg);
     } catch (e: any) {
-      throw new Error(`sendDepositConfirmed: ${e.message}`);
+      return this.handler.log('telegram', e.message);
+    } finally {
+      this.lastReplyTime = Date.now();
     }
   };
 
-  sendWithdrawReply = async (
-    platformId: string,
-    { txid, amount, error }: { txid?: string, amount?: string, error?: string},
-    // ctx: Context
+  private handleDepositCommand = async (
+    platformId: string
   ) => {
     try {
-      await setTimeout(this._calcReplyDelay());
-      const msg = error
-        ? format(BOT.MESSAGE.WITHDRAW_FAIL, error)
+      const address = await this.handler.processDepositCommand(
+        'telegram',
+        platformId
+      );
+      const msg = format(
+        BOT.MESSAGE.DEPOSIT,
+        address,
+        `${config.wallet.explorerUrl}/address/${address}`
+      );
+      await setTimeout(this.calcReplyDelay());
+      await this.bot.telegram.sendMessage(platformId, msg,
+        { parse_mode: 'Markdown' }
+      );
+    } catch (e: any) {
+      return this.handler.log('telegram', e.message);
+    } finally {
+      this.lastReplyTime = Date.now();
+    }
+  };
+
+  private handleGiveCommand = async (
+    chatId: number,
+    replyToMessageId: number,
+    fromId: string,
+    fromUsername: string,
+    toId: string,
+    toUsername: string,
+    value: string
+  ) => {
+    try {
+      const { txid, amount } = await this.handler.processGiveCommand(
+        'telegram',
+        fromId,
+        fromUsername,
+        toId,
+        toUsername,
+        value
+      );
+      const fromUsernameEscaped = escape(fromUsername);
+      const toUsernameEscaped = escape(toUsername);
+      const msg = format(
+        BOT.MESSAGE.GIVE,
+        fromUsernameEscaped,
+        amount,
+        toUsernameEscaped,
+        `${config.wallet.explorerUrl}/tx/${txid}`
+      );
+      await setTimeout(this.calcReplyDelay());
+      await this.bot.telegram.sendMessage(chatId, msg, {
+        reply_to_message_id: replyToMessageId,
+        parse_mode: 'Markdown'
+      });
+    } catch (e: any) {
+      return this.handler.log('telegram', e.message);
+    } finally {
+      this.lastReplyTime = Date.now();
+    }
+  };
+
+  private handleWithdrawCommand = async (
+    platformId: string,
+    outAmount: string,
+    outAddress: string,
+  ) => {
+    try {
+      const result = await this.handler.processWithdrawCommand(
+        'telegram',
+        platformId,
+        outAmount,
+        outAddress
+      );
+      const msg = typeof result == 'string'
+        ? format(BOT.MESSAGE.WITHDRAW_FAIL, result)
         : format(
           BOT.MESSAGE.WITHDRAW_OK,
-          amount,
-          `${config.wallet.explorerUrl}/tx/${txid}`
+          result.amount,
+          `${config.wallet.explorerUrl}/tx/${result.txid}`
         );
+      await setTimeout(this.calcReplyDelay());
       await this.bot.telegram.sendMessage(platformId, msg,
         { parse_mode: 'Markdown' }
       );
-      this.lastReplyTime = Date.now();
     } catch (e: any) {
-      throw new Error(`sendWithdrawReply: ${e.message}`);
+      return this.handler.log('telegram', e.message);
+    } finally {
+      this.lastReplyTime = Date.now();
     }
   };
 
-  sendLinkReply = async (
+  private handleLinkCommand = async (
     platformId: string,
-    { error, secret }: { error?: string, secret?: string },
+    secret: string | undefined,
   ) => {
     try {
-      await setTimeout(this._calcReplyDelay());
-      switch (typeof secret) {
+      const result = await this.handler.processLinkCommand(
+        'telegram',
+        platformId,
+        secret
+      );
+      await setTimeout(this.calcReplyDelay());
+      if (typeof result == 'string') {
+        await this.bot.telegram.sendMessage(
+          platformId,
+          format(BOT.MESSAGE.LINK_FAIL, result)
+        );
+        throw new Error(result);
+      }
+      switch (typeof result.secret) {
         case 'string':
-          const msg = format(BOT.MESSAGE.LINK, secret);
-          await this.bot.telegram.sendMessage(platformId, msg,
+          await this.bot.telegram.sendMessage(platformId,
+            format(BOT.MESSAGE.LINK, secret),
             { parse_mode: 'Markdown' }
           );
           break;
         case 'undefined':
           await this.bot.telegram.sendMessage(
             platformId,
-            error
-              ? format(BOT.MESSAGE.LINK_FAIL, error)
-              : BOT.MESSAGE.LINK_OK
+            BOT.MESSAGE.LINK_OK
           );
           break;
       }
-      this.lastReplyTime = Date.now();
     } catch (e: any) {
-      throw new Error(`sendLinkReply: ${e.message}`);
+      return this.handler.log('telegram', e.message);
+    } finally {
+      this.lastReplyTime = Date.now();
     }
   };
 
-  sendBackupReply = async (
+  private handleBackupCommand = async (
     platformId: string,
-    mnemonic: string
   ) => {
     try {
-      await setTimeout(this._calcReplyDelay());
+      const mnemonic = await this.handler.processBackupCommand(
+        'telegram',
+        platformId
+      );
+      await setTimeout(this.calcReplyDelay());
       await this.bot.telegram.sendMessage(
         platformId,
         format(BOT.MESSAGE.BACKUP, mnemonic),
         { parse_mode: 'Markdown' }
       );
-      this.lastReplyTime = Date.now();
     } catch (e: any) {
-      throw new Error(`sendBackupReply: ${e.message}`);
+      return this.handler.log('telegram', `handleBackupCommand: ${e.message}`);
+    } finally {
+      this.lastReplyTime = Date.now();
     }
   };
 
-  private _handleDirectMessage = async (
-    ctx: TelegramMessage
+  private handleDirectMessage = async (
+    ctx: Context
   ) => {
     try {
       if (ctx.chat.type !== 'private') {
@@ -268,35 +289,33 @@ implements Platform {
       const command = messageText.split(' ').shift();
       switch (command) {
         case '/deposit':
-          return this.emit('Deposit', 'telegram', platformId);
+          return this.handleDepositCommand(platformId);
         case '/withdraw':
-          const [ wAmount, wAddress ] = parseWithdraw(messageText);
-          if (!wAmount || !wAddress) {
+          const [ outAmount, outAddress ] = parseWithdraw(messageText);
+          if (!outAmount || !outAddress) {
             return ctx.sendMessage(
               `Syntax: \`/withdraw amount address\`\r\n`,
               { parse_mode: 'Markdown' }
             );
           }
-          if (Number(wAmount) <= 0) {
+          if (Number(outAmount) <= 0 || isNaN(Number(outAmount))) {
             return ctx.sendMessage(
               `Invalid amount specified.`,
               { parse_mode: 'Markdown' }
             );
           }
-          return this.emit(
-            'Withdraw',
-            'telegram',
+          return this.handleWithdrawCommand(
             platformId,
-            wAmount,
-            wAddress
+            outAmount,
+            outAddress
           );
         case '/balance':
-          return this.emit('Balance', 'telegram', platformId);
+          return this.handleBalanceCommand(platformId);
         case '/link':
           const secret = parseLink(messageText);
-          return this.emit('Link', 'telegram', platformId, secret);
+          return this.handleLinkCommand(platformId, secret);
         case '/backup':
-          return this.emit('Backup', 'telegram', platformId);
+          return this.handleBackupCommand(platformId);
         case '/start':
           return ctx.sendMessage(
             `Welcome to my home! ` +
@@ -310,12 +329,12 @@ implements Platform {
           )
       }
     } catch (e: any) {
-      throw new Error(`_handleDirectMessage: ${e.message}`);
+      throw new Error(`handleDirectMessage: ${e.message}`);
     }
   };
 
-  private _handleGroupMessage = async (
-    ctx: TelegramMessage
+  private handleGroupMessage = async (
+    ctx: Context
   ) => {
     try {
       const replyToMessageId = ctx.message.message_id;
@@ -360,9 +379,7 @@ implements Platform {
               { reply_to_message_id: replyToMessageId }
             );
           }
-          return this.emit(
-            'Give',
-            'telegram', 
+          return this.handleGiveCommand(
             chatId,
             replyToMessageId,
             fromId.toString(),
@@ -377,14 +394,12 @@ implements Platform {
     }
   };
 
-  private _calcReplyDelay = () => {
+  private calcReplyDelay = () => {
     const now = Date.now();
     const delay = Math.floor(
       (1000 / REPLIES_PER_SECOND) - (now - this.lastReplyTime)
     );
-    return delay < 0
-      ? 0 
-      : delay;
+    return delay < 0 ? 0 : delay;
   };
   
 };
