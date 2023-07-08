@@ -231,7 +231,7 @@ implements Platform {
       switch (typeof result.secret) {
         case 'string':
           await this.bot.telegram.sendMessage(platformId,
-            format(BOT.MESSAGE.LINK, secret),
+            format(BOT.MESSAGE.LINK, result.secret),
             { parse_mode: 'Markdown' }
           );
           break;
