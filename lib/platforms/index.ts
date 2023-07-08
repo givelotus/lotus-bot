@@ -1,6 +1,6 @@
-import { Telegram, TelegramMessage } from './telegram';
-import { Twitter, TwitterMessage } from './twitter';
-import { Discord, DiscordMessage } from './discord';
+import { Telegram } from './telegram';
+import { Twitter } from './twitter';
+import { Discord } from './discord';
 
 export const Platforms = {
   telegram: Telegram,
@@ -8,10 +8,6 @@ export const Platforms = {
   discord: Discord
 };
 export type PlatformName = keyof typeof Platforms;
-export type PlatformMessage =
-  | TelegramMessage
-  | TwitterMessage
-  | DiscordMessage;
 
 export interface Platform {
   /**

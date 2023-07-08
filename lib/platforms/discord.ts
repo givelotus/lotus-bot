@@ -21,7 +21,7 @@ import config from '../../config';
 const primaryColor: ColorResolvable = 0xa02fe4;
 const secondaryColor: ColorResolvable = 0xf0409b;
 
-export type DiscordMessage = ChatInputCommandInteraction | Message;
+type DiscordMessage = ChatInputCommandInteraction | Message;
 
 type Command = {
   name: string,

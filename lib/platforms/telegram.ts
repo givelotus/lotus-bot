@@ -12,8 +12,6 @@ import config from '../../config'
 import { Message } from "telegraf/typings/core/types/typegram";
 import { Handler } from "../handler";
 
-export type TelegramMessage = Context;
-
 const REPLIES_PER_SECOND = 20;
 const parseGive = (
   text: string
@@ -102,7 +100,7 @@ implements Platform {
       throw new Error(`sendDepositReceived: ${e.message}`);
     }
   };
-  
+
   private handleBalanceCommand = async (
     platformId: string
   ) => {
