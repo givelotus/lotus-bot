@@ -245,6 +245,7 @@ export class Handler extends EventEmitter {
   } | string> => {
     this.log(platform, `${platformId}: link command received`);
     const msg = `${platformId}: link: ${secret ? '<redacted>' : 'initiate'}`;
+    this.log(platform, `${msg}: command received`);
     try {
       const { accountId, userId } = await this._getIds(platform, platformId);
       switch (typeof secret) {
