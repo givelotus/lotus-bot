@@ -19,7 +19,7 @@ const MAIN = 'lotusbot';
  */
 export default class LotusBot {
   private prisma: Database;
-  private wallets: WalletManager;
+  private wallet: WalletManager;
   private handler: Handler;
   private bots: { [platform in PlatformName]?: Platform } = {};
   /** Hold enabled platforms */
@@ -27,8 +27,8 @@ export default class LotusBot {
 
   constructor() {
     this.prisma = new Database();
-    this.wallets = new WalletManager();
-    this.handler = new Handler(this.prisma, this.wallets);
+    this.wallet = new WalletManager();
+    this.handler = new Handler(this.prisma, this.wallet);
     // Handler events
     this.handler.on('Shutdown', this._shutdown);
     this.handler.on('DepositSaved', this._depositSaved);
@@ -93,7 +93,7 @@ export default class LotusBot {
   private _initWalletManager = async () => {
     try {
       const keys = await this.prisma.getUserWalletKeys();
-      await this.wallets.init(
+      await this.wallet.init(
         keys.map(key => {
           const { accountId, userId, hdPrivKey } = key;
           return {
@@ -130,7 +130,7 @@ export default class LotusBot {
     for (const [ name ] of this.platforms) {
       await this.bots[name].stop();
     }
-    this.wallets?.closeWsEndpoint();
+    this.wallet?.closeWsEndpoint();
     await this.prisma?.disconnect();
     process.exit(1);
   };

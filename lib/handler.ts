@@ -23,17 +23,17 @@ const { MIN_OUTPUT_AMOUNT } = TRANSACTION;
  */
 export class Handler extends EventEmitter {
   private prisma: Database;
-  private wallets: WalletManager;
+  private wallet: WalletManager;
 
   constructor(
     prisma: Database,
-    wallets: WalletManager
+    wallet: WalletManager
   ) {
     super();
     this.prisma = prisma;
-    this.wallets = wallets;
+    this.wallet = wallet;
     // Set up event handlers once we are ready
-    this.wallets.on('AddedToMempool', this.walletsUtxoAddedToMempool);
+    this.wallet.on('AddedToMempool', this.walletUtxoAddedToMempool);
   };
   /** Informational and error logging */
   log = (
@@ -46,7 +46,7 @@ export class Handler extends EventEmitter {
   init = async () => {
     this.log(MAIN, `reconciling deposits with UTXO set`);
     try {
-      const utxos = this.wallets.getUtxos();
+      const utxos = this.wallet.getUtxos();
       const deposits = await this.prisma.getDeposits();
       const newDeposits = utxos.filter(u => {
         return deposits.findIndex(d => u.txid == d.txid) < 0;
@@ -59,7 +59,7 @@ export class Handler extends EventEmitter {
     }
   };
   /**  */
-  walletsUtxoAddedToMempool = async (
+  walletUtxoAddedToMempool = async (
     utxo: AccountUtxo
   ) => {
     try {
@@ -78,7 +78,7 @@ export class Handler extends EventEmitter {
     this.log(platform, `${msg}: command received`);
     try {
       const { accountId } = await this._getIds(platform, platformId);
-      const balance = await this.wallets.getAccountBalance(accountId);
+      const balance = await this.wallet.getAccountBalance(accountId);
       return Util.toXPI(balance);
     } catch (e: any) {
       throw new Error(`${msg}: ERROR: ${e.message}`);
@@ -93,7 +93,7 @@ export class Handler extends EventEmitter {
     this.log(platform, `${msg}: command received`);
     try {
       const { userId } = await this._getIds(platform, platformId);
-      return this.wallets.getXAddress(userId);
+      return this.wallet.getXAddress(userId);
     } catch (e: any) {
       throw new Error(`${msg}: ERROR: ${e.message}`);
     }
@@ -120,7 +120,7 @@ export class Handler extends EventEmitter {
         accountId: fromAccountId,
         userId: fromUserId
       } = await this._getIds(platform, fromId);
-      const balance = await this.wallets.getAccountBalance(fromAccountId);
+      const balance = await this.wallet.getAccountBalance(fromAccountId);
       if (sats > balance) {
         throw new Error(`${msg}: ERROR: insufficient balance: ${balance}`);
       }
@@ -129,7 +129,7 @@ export class Handler extends EventEmitter {
         userId: toUserId
       } = await this._getIds(platform, toId);
       // Give successful; broadcast tx and save to db
-      const tx = await this.wallets.genTx({
+      const tx = await this.wallet.genTx({
         fromAccountId,
         toUserId,
         sats
@@ -150,7 +150,7 @@ export class Handler extends EventEmitter {
       this.log(DB, `${msg}: saved to db: ${tx.txid}`);
       // try to broadcast the give tx
       try {
-        await this.wallets.broadcastTx(tx);
+        await this.wallet.broadcastTx(tx);
       } catch (e: any) {
         await this.prisma.deleteGive(tx.txid);
         throw new Error(`${msg}: ERROR: broadcast failed: ${e.message}`);
@@ -188,17 +188,17 @@ export class Handler extends EventEmitter {
         userId
       } = await this._getIds(platform, platformId);
       // Get the user's XAddress and check against outAddress
-      const addresses = this.wallets.getXAddresses(accountId);
+      const addresses = this.wallet.getXAddresses(accountId);
       if (addresses.includes(outAddress)) {
         return `you must withdraw to an external wallet`;
       }
       // Get the user's balance and check against outAmount
-      const balance = await this.wallets.getAccountBalance(accountId);
+      const balance = await this.wallet.getAccountBalance(accountId);
       if (sats > balance) {
         return `insufficient balance: ${sats} > ${balance}`;
       }
       // Generate withdrawal tx
-      const tx = await this.wallets.genTx({
+      const tx = await this.wallet.genTx({
         fromAccountId: accountId,
         outAddress,
         sats
@@ -218,7 +218,7 @@ export class Handler extends EventEmitter {
       // try to broadcast the withdrawal tx
       try {
         // Broadcast the withdrawal to network
-        const txid = await this.wallets.broadcastTx(tx);
+        const txid = await this.wallet.broadcastTx(tx);
         this.log(WALLET, `${msg}: accepted by network: ${txid}`);
         // Get the actual number of sats in the tx output to reply to user
         const outSats = tx.outputs[0].satoshis;
@@ -243,7 +243,6 @@ export class Handler extends EventEmitter {
   ): Promise<{
     secret: string
   } | string> => {
-    this.log(platform, `${platformId}: link command received`);
     const msg = `${platformId}: link: ${secret ? '<redacted>' : 'initiate'}`;
     this.log(platform, `${msg}: command received`);
     try {
@@ -266,7 +265,7 @@ export class Handler extends EventEmitter {
             `${msg}: successfully linked to ${linkAccountId} accountId`
           );
           // update walletkey with new accountId
-          this.wallets.updateKey(userId, accountId, linkAccountId);
+          this.wallet.updateKey(userId, accountId, linkAccountId);
           return { secret: undefined };
         /** User wants secret to link account */
         case 'undefined':
@@ -343,7 +342,7 @@ export class Handler extends EventEmitter {
         hdPrivKey: hdPrivKey.toString(),
         hdPubKey: hdPubKey.toString()
       });
-      await this.wallets.loadKey({ accountId, userId, hdPrivKey });
+      await this.wallet.loadKey({ accountId, userId, hdPrivKey });
       this.log(DB, `new account saved: ${accountId}`);
       return { accountId, userId };
     } catch (e: any) {
@@ -376,7 +375,7 @@ export class Handler extends EventEmitter {
           continue;
         }
         const { accountId } = deposit.user;
-        const balance = await this.wallets.getAccountBalance(accountId);
+        const balance = await this.wallet.getAccountBalance(accountId);
         return this.emit('DepositSaved', {
           platform: platformName as PlatformName,
           platformId: user.id,
