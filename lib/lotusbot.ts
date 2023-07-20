@@ -41,76 +41,6 @@ export default class LotusBot {
       }
     }
   };
-  /**
-   * Initialize all submodules  
-   * Set up required event handlers
-   */
-  init = async () => {
-    process.on('SIGINT', this._shutdown);
-    try {
-      await this._initPrisma();
-      await this._initWalletManager();
-      await this._initBots();
-      await this.handler.init();
-    } catch (e: any) {
-      this._log(MAIN, `FATAL: init: ${e.message}`);
-      await this._shutdown();
-    }
-    this._log(MAIN, "service initialized successfully");
-  };
-  /**
-   * Initialize all configured bot modules  
-   * A bot module is considered enabled if the `.env` includes `APIKEY` entry
-   */
-  private _initBots = async () => {
-    for (const [ name, apiKey ] of this.platforms) {
-      try {
-        await this.bots[name].setup(apiKey);
-        await this.bots[name].launch();
-        this._log(name, `initialized`);
-      } catch (e: any) {
-        throw new Error(`_initBot: ${e.message}`);
-      }
-    }
-  };
-  /**
-   * Initialize Prisma module:  
-   * - Connect to the database
-   */
-  private _initPrisma = async () => {
-    try {
-      await this.prisma.connect();
-      this._log(DB, 'initialized');
-    } catch (e: any) {
-      throw new Error(`_initPrisma: ${e.message}`);
-    }
-  };
-  /**
-   * Initialize WalletManager module:  
-   * - Get all WalletKeys from database
-   * - Load all WalletKeys into WalletManager
-   */
-  private _initWalletManager = async () => {
-    try {
-      const keys = await this.prisma.getUserWalletKeys();
-      await this.wallet.init(
-        keys.map(key => {
-          const { accountId, userId, hdPrivKey } = key;
-          return {
-            accountId,
-            userId,
-            hdPrivKey: WalletManager.hdPrivKeyFromBuffer(hdPrivKey)
-          }
-        })
-      );
-      this._log(WALLET, 'initialized');
-    } catch (e: any) {
-      throw new Error(`_initWalletManager: ${e.message}`);
-    }
-  };
-  private _initHandler = async () => {
-
-  };
   /** Informational and error logging */
   private _log = (
     module: string,
@@ -121,7 +51,68 @@ export default class LotusBot {
     platform: PlatformName,
     msg: string,
     error: string
-  ) => this._log(platform, `${msg} failed to notify user: ${error}`);
+  ) => this._log(platform, `${msg}: failed to notify user: ${error}`);
+  /**
+   * Initialize all submodules  
+   * Set up required event handlers
+   */
+  init = async () => {
+    process.on('SIGINT', this._shutdown);
+    try {
+      /**
+       * Initialize Prisma module:  
+       * - Connect to the database
+       */
+      try {
+        await this.prisma.connect();
+        this._log(DB, 'initialized');
+      } catch (e: any) {
+        throw new Error(`initPrisma: ${e.message}`);
+      }
+      /**
+       * Initialize WalletManager module:  
+       * - Get all WalletKeys from database
+       * - Load all WalletKeys into WalletManager
+       */
+      try {
+        const keys = await this.prisma.getUserWalletKeys();
+        await this.wallet.init(
+          keys.map(key => {
+            const { accountId, userId, hdPrivKey } = key;
+            return {
+              accountId,
+              userId,
+              hdPrivKey: WalletManager.hdPrivKeyFromBuffer(hdPrivKey)
+            }
+          })
+        );
+        this._log(WALLET, 'initialized');
+      } catch (e: any) {
+        throw new Error(`initWalletManager: ${e.message}`);
+      }
+      /**
+       * Initialize all configured bot modules  
+       * A bot module is considered enabled if the `.env` includes `APIKEY` entry
+       */
+      for (const [ name, apiKey ] of this.platforms) {
+        try {
+          await this.bots[name].setup(apiKey);
+          await this.bots[name].launch();
+          this._log(name, `initialized`);
+        } catch (e: any) {
+          throw new Error(`initBot: ${name}: ${e.message}`);
+        }
+      }
+      /**
+       * Initialize primary command handler module
+       */
+      await this.handler.init();
+    } catch (e: any) {
+      this._log(MAIN, `FATAL: init: ${e.message}`);
+      await this._shutdown();
+    }
+    this._log(MAIN, "service initialized successfully");
+  };
   /** Shutdown all submodules */
   private _shutdown = async () => {
     console.log();
@@ -161,7 +152,7 @@ export default class LotusBot {
         `${platformId}: user notified of deposit received: ${txid}`
       );
     } catch (e: any) {
-      this._logPlatformNotifyError(platform, '_depositSaved:', e.message);
+      this._logPlatformNotifyError(platform, '_depositSaved', e.message);
     }
   };
 
