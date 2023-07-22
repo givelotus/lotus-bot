@@ -1,4 +1,3 @@
-import { EventEmitter } from "node:stream";
 import { setTimeout } from "node:timers/promises";
 import { format } from 'node:util';
 import {
@@ -75,6 +74,28 @@ implements Platform {
     this.bot.stop();
   };
   getBotId = () => this.bot.botInfo?.id.toString();
+  notifyUser = async (
+    platformOrChatId: string | number,
+    msg: string,
+    replyToMessageId: number = undefined,
+  ) => {
+    try {
+      await this.bot.telegram.sendMessage(
+        platformOrChatId,
+        msg,
+        {
+          parse_mode: 'Markdown',
+          reply_to_message_id: replyToMessageId ? replyToMessageId: undefined
+        }
+      );
+    } catch (e: any) {
+      this.handler.logPlatformNotifyError(
+        `telegram`,
+        `handleBalanceCommand`,
+        e.message
+      );
+    }
+  };
 
   sendDepositReceived = async (
     platformId: string,
@@ -90,12 +111,11 @@ implements Platform {
         balance,
         `${config.wallet.explorerUrl}/tx/${txid}`
       );
-      await this.bot.telegram.sendMessage(platformId, msg,
-        { parse_mode: 'Markdown' }
-      );
-      this.lastReplyTime = Date.now();
+      await this.notifyUser(platformId, msg);
     } catch (e: any) {
       throw new Error(`sendDepositReceived: ${e.message}`);
+    } finally {
+      this.lastReplyTime = Date.now();
     }
   };
 
@@ -108,8 +128,8 @@ implements Platform {
         platformId
       );
       const msg = format(BOT.MESSAGE.BALANCE, balance);
+      await this.notifyUser(platformId, msg);
       await setTimeout(this.calcReplyDelay());
-      await this.bot.telegram.sendMessage(platformId, msg);
     } catch (e: any) {
       return this.handler.log('telegram', e.message);
     } finally {
@@ -131,9 +151,7 @@ implements Platform {
         `${config.wallet.explorerUrl}/address/${address}`
       );
       await setTimeout(this.calcReplyDelay());
-      await this.bot.telegram.sendMessage(platformId, msg,
-        { parse_mode: 'Markdown' }
-      );
+      await this.notifyUser(platformId, msg);
     } catch (e: any) {
       return this.handler.log('telegram', e.message);
     } finally {
@@ -169,10 +187,7 @@ implements Platform {
         `${config.wallet.explorerUrl}/tx/${txid}`
       );
       await setTimeout(this.calcReplyDelay());
-      await this.bot.telegram.sendMessage(chatId, msg, {
-        reply_to_message_id: replyToMessageId,
-        parse_mode: 'Markdown'
-      });
+      await this.notifyUser(chatId, msg, replyToMessageId);
     } catch (e: any) {
       return this.handler.log('telegram', e.message);
     } finally {
@@ -200,9 +215,7 @@ implements Platform {
           `${config.wallet.explorerUrl}/tx/${result.txid}`
         );
       await setTimeout(this.calcReplyDelay());
-      await this.bot.telegram.sendMessage(platformId, msg,
-        { parse_mode: 'Markdown' }
-      );
+      await this.notifyUser(platformId, msg);
     } catch (e: any) {
       return this.handler.log('telegram', e.message);
     } finally {
@@ -228,20 +241,10 @@ implements Platform {
         );
         throw new Error(result);
       }
-      switch (typeof result.secret) {
-        case 'string':
-          await this.bot.telegram.sendMessage(platformId,
-            format(BOT.MESSAGE.LINK, result.secret),
-            { parse_mode: 'Markdown' }
-          );
-          break;
-        case 'undefined':
-          await this.bot.telegram.sendMessage(
-            platformId,
-            BOT.MESSAGE.LINK_OK
-          );
-          break;
-      }
+      const msg = typeof result.secret == 'string'
+        ? format(BOT.MESSAGE.LINK, result.secret)
+        : BOT.MESSAGE.LINK_OK;
+      await this.notifyUser(platformId, msg);
     } catch (e: any) {
       return this.handler.log('telegram', e.message);
     } finally {
@@ -258,11 +261,7 @@ implements Platform {
         platformId
       );
       await setTimeout(this.calcReplyDelay());
-      await this.bot.telegram.sendMessage(
-        platformId,
-        format(BOT.MESSAGE.BACKUP, mnemonic),
-        { parse_mode: 'Markdown' }
-      );
+      await this.notifyUser(platformId, format(BOT.MESSAGE.BACKUP, mnemonic));
     } catch (e: any) {
       return this.handler.log('telegram', `handleBackupCommand: ${e.message}`);
     } finally {
