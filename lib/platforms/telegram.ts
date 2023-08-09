@@ -77,7 +77,7 @@ implements Platform {
   notifyUser = async (
     platformOrChatId: string | number,
     msg: string,
-    replyToMessageId: number = undefined,
+    replyToMessageId?: number,
   ) => {
     try {
       await this.bot.telegram.sendMessage(
@@ -85,7 +85,7 @@ implements Platform {
         msg,
         {
           parse_mode: 'Markdown',
-          reply_to_message_id: replyToMessageId ? replyToMessageId: undefined
+          reply_to_message_id: replyToMessageId
         }
       );
     } catch (e: any) {
@@ -131,7 +131,7 @@ implements Platform {
       await this.notifyUser(platformId, msg);
       await setTimeout(this.calcReplyDelay());
     } catch (e: any) {
-      return this.handler.log('telegram', e.message);
+      this.handler.log('telegram', e.message);
     } finally {
       this.lastReplyTime = Date.now();
     }
@@ -153,7 +153,7 @@ implements Platform {
       await setTimeout(this.calcReplyDelay());
       await this.notifyUser(platformId, msg);
     } catch (e: any) {
-      return this.handler.log('telegram', e.message);
+      this.handler.log('telegram', e.message);
     } finally {
       this.lastReplyTime = Date.now();
     }
@@ -189,7 +189,7 @@ implements Platform {
       await setTimeout(this.calcReplyDelay());
       await this.notifyUser(chatId, msg, replyToMessageId);
     } catch (e: any) {
-      return this.handler.log('telegram', e.message);
+      this.handler.log('telegram', e.message);
     } finally {
       this.lastReplyTime = Date.now();
     }
@@ -217,7 +217,7 @@ implements Platform {
       await setTimeout(this.calcReplyDelay());
       await this.notifyUser(platformId, msg);
     } catch (e: any) {
-      return this.handler.log('telegram', e.message);
+      this.handler.log('telegram', e.message);
     } finally {
       this.lastReplyTime = Date.now();
     }
@@ -246,7 +246,7 @@ implements Platform {
         : BOT.MESSAGE.LINK_OK;
       await this.notifyUser(platformId, msg);
     } catch (e: any) {
-      return this.handler.log('telegram', e.message);
+      this.handler.log('telegram', e.message);
     } finally {
       this.lastReplyTime = Date.now();
     }
@@ -263,7 +263,7 @@ implements Platform {
       await setTimeout(this.calcReplyDelay());
       await this.notifyUser(platformId, format(BOT.MESSAGE.BACKUP, mnemonic));
     } catch (e: any) {
-      return this.handler.log('telegram', `handleBackupCommand: ${e.message}`);
+      this.handler.log('telegram', `handleBackupCommand: ${e.message}`);
     } finally {
       this.lastReplyTime = Date.now();
     }
