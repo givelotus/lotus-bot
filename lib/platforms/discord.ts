@@ -1,4 +1,3 @@
-import { EventEmitter } from "node:stream";
 import {
   REST,
   Routes,
@@ -16,12 +15,11 @@ import { BOT } from '../../util/constants';
 import { format } from 'node:util';
 import { Platform } from '.';
 import config from '../../config';
+import { Handler } from '../handler';
 
 // DM Branding
 const primaryColor: ColorResolvable = 0xa02fe4;
 const secondaryColor: ColorResolvable = 0xf0409b;
-
-type DiscordMessage = ChatInputCommandInteraction | Message;
 
 type Command = {
   name: string,
@@ -36,10 +34,10 @@ type CommandOption = {
   required: boolean
 };
 
-export class Discord 
-extends EventEmitter
+export class Discord
 implements Platform {
   private lastReplyTime: number;
+  private handler: Handler;
   private clientId: string;
   private guildIds: string[];
   private client: Client;
@@ -47,9 +45,9 @@ implements Platform {
   private activities: string[] = [];
   private activityInterval: NodeJS.Timer;
 
-  constructor() {   
-    super();
+  constructor(handler: Handler) {
     // Discord bot client and api setup
+    this.handler = handler;
     this.clientId = config.discord.clientId;
     this.guildIds = config.discord.guildId.split(",");
     this.client = new Client({
@@ -133,10 +131,6 @@ implements Platform {
         name: 'ping',
         description: 'pong'
       },
-      {
-        name: 'ilovelotus',
-        description: 'I 💖 🪷'
-      },
     ];
     try {
       this.client.on('ready', this._handleReady);
@@ -163,22 +157,34 @@ implements Platform {
     this.client.destroy();
   };
   getBotId = () => this.clientId;
-  sendBalanceReply = async (
+
+  private handleBalanceCommand = async (
+    interaction: ChatInputCommandInteraction | Message,
     platformId: string,
-    balance: string,
-    interaction: ChatInputCommandInteraction
   ) => {
     try {
+      const balance = await this.handler.processBalanceCommand(
+        'discord',
+        platformId
+      );
       await interaction.reply({
         content: format(BOT.MESSAGE.BALANCE, balance),
         ephemeral: true
       });
     } catch (e: any) {
-      throw new Error(`sendBalanceReply: ${e.message}`);
+      this.handler.log('discord', e.message);
     }
   };
-  sendDepositReply = async (platformId: string, address: string) => {
+
+  private handleDepositCommand = async (
+    interaction: ChatInputCommandInteraction | Message,
+    platformId: string
+  ) => {
     try {
+      const address = await this.handler.processDepositCommand(
+        'discord',
+        platformId
+      );
       const depositReplyEmbed = new EmbedBuilder()
         .setColor(primaryColor)
         .setTitle(`View address on the Explorer`)
@@ -186,13 +192,124 @@ implements Platform {
         .setDescription('Send Lotus here to fund your account')
         .addFields({ name: 'Lotus Address', value: address })
         .setImage(`${config.wallet.explorerUrl}/qr/${address}`);
-
-      const userObj = await this.client.users.fetch(platformId);
-      await userObj.send({embeds: [depositReplyEmbed]});
+      await interaction.reply({
+        embeds: [depositReplyEmbed],
+        ephemeral: true
+      });
     } catch (e: any) {
-      throw new Error(`sendDepositReply: ${e.message}`);
+      this.handler.log('discord', `handleDepositCommand: ${e.message}`);
     }
   };
+
+  private handleGiveCommand = async (
+    interaction: ChatInputCommandInteraction,
+    fromId: string,
+    fromUsername: string,
+    toId: string,
+    toUsername: string,
+    value: string,
+  ) => {
+    try {
+      const { txid, amount } = await this.handler.processGiveCommand(
+        'discord',
+        fromId,
+        fromUsername,
+        toId,
+        toUsername,
+        value
+      );
+      const fromUser = `<@${fromId}>`;
+      const toUser = `<@${toId}>`;
+      const giveReplyEmbed = new EmbedBuilder()
+        .setColor(primaryColor)
+        .setTitle(`🪷 Click Here to see the tx 🪷`)
+        .setURL(`${config.wallet.explorerUrl}/tx/${txid}`)
+        .setDescription(`${fromUser}, you have given ${amount} XPI to ${toUser}! 🪷`);
+      await interaction.reply({ embeds: [giveReplyEmbed] });
+    } catch (e: any) {
+      this.handler.log('discord', `handleGiveCommand: ${e.message}`);
+    }
+  };
+
+  private handleWithdrawCommand = async (
+    interaction: ChatInputCommandInteraction | Message,
+    platformId: string,
+    outAmount: string,
+    outAddress: string,
+  ) => {
+    try {
+      const result = await this.handler.processWithdrawCommand(
+        'discord',
+        platformId,
+        outAmount,
+        outAddress
+      );
+      if (typeof result == 'string') {
+        await interaction.reply(format(BOT.MESSAGE.WITHDRAW_FAIL, result));
+        throw new Error(result);
+      }
+      const embedMessage = new EmbedBuilder()
+        .setColor(secondaryColor)
+        .setTitle('Withdrawal Successful 🪷 - Click Here to see the tx.')
+        .setURL(`${config.wallet.explorerUrl}/tx/${result.txid}`)
+        .setDescription(`Your withdrawal of ${result.amount} XPI was successful!`);
+      await interaction.reply({
+        embeds: [embedMessage],
+        ephemeral: true
+      });
+    } catch (e: any) {
+      this.handler.log('discord', `handleWithdrawCommand: ${e.message}`);
+    }
+  };
+
+  private handleLinkCommand = async (
+    interaction: ChatInputCommandInteraction | Message,
+    platformId: string,
+    secret: string | undefined,
+  ) => {
+    try {
+      const result = await this.handler.processLinkCommand(
+        'discord',
+        platformId,
+        secret
+      );
+      if (typeof result == 'string') {
+        await interaction.reply({
+          content: format(BOT.MESSAGE.LINK_FAIL, result),
+          ephemeral: true
+        });
+        throw new Error(result);
+      }
+      const msg = typeof result.secret == 'string'
+        ? format(BOT.MESSAGE.LINK, result.secret)
+        : BOT.MESSAGE.LINK_OK;
+      await interaction.reply({
+        content: msg,
+        ephemeral: true
+      });
+    } catch (e: any) {
+      this.handler.log('discord', `handleLinkCommand: ${e.message}`);
+    }
+  };
+
+  private handleBackupCommand = async (
+    interaction: ChatInputCommandInteraction | Message,
+    platformId: string,
+  ) => {
+    try {
+      const mnemonic = await this.handler.processBackupCommand(
+        'discord',
+        platformId
+      );
+      await interaction.reply({
+        content: format(BOT.MESSAGE.BACKUP, mnemonic),
+        ephemeral: true
+      });
+    } catch (e: any) {
+      this.handler.log('discord', `handleBackupCommand: ${e.message}`);
+    }
+  };
+
   sendDepositReceived = async (
     platformId: string,
     txid: string,
@@ -215,103 +332,6 @@ implements Platform {
     }
   };
 
-  sendGiveReply = async (
-    chatId: string,
-    replyToMessageId: number,
-    fromUsername: string,
-    toUsername: string,
-    txid: string,
-    amount: string,
-    interaction: ChatInputCommandInteraction
-  ) => {
-    try {
-      const { user, options } = interaction;
-      const fromUser = `<@${user.id}>`;
-      const toUser = `<@${options.getUser('to').id}>`;
-      const giveReplyEmbed = new EmbedBuilder()
-        .setColor(primaryColor)
-        .setTitle(`🪷 Click Here to see the tx 🪷`)
-        .setURL(`${config.wallet.explorerUrl}/tx/${txid}`)
-        .setDescription(`${fromUser}, you have given ${amount} XPI to ${toUser}! 🪷`);
-        //.addFields({ name: 'From', value: `${fromUser}` })
-        //.addFields({ name: 'To', value: `${toUser}` });
-      await interaction.reply({embeds: [giveReplyEmbed]});
-    } catch (e: any) {
-      throw new Error(`sendGiveReply: ${e.message}`);
-    }
-  };
-  sendWithdrawReply = async (
-    platformId: string,
-    {
-      txid,
-      amount,
-      error
-    }: {
-      txid?: string,
-      amount?: string,
-      error?: string
-    }
-  ) => {
-    try {
-      const userObj = await this.client.users.fetch(platformId);
-      if (error) {
-        await userObj.send(format(BOT.MESSAGE.WITHDRAW_FAIL, error));
-        return;
-      }
-      const embedMessage = new EmbedBuilder()
-        .setColor(secondaryColor)
-        .setTitle('Withdrawal Successful 🪷 - Click Here to see the tx.')
-        .setURL(`${config.wallet.explorerUrl}/tx/${txid}`)
-        .setDescription(`Your withdrawal of ${amount} XPI was successful!`);
-
-      await userObj.send({embeds: [embedMessage]});
-    } catch (e: any) {
-      throw new Error(`sendWithdrawReply: ${e.message}`);
-    }
-  };
-  sendLinkReply = async (
-    platformId: string,
-    { error, secret }: { error?: string, secret?: string },
-    interaction: DiscordMessage
-  ) => {
-    try {
-      switch (typeof secret) {
-        case 'string':
-          const msg = format(BOT.MESSAGE.LINK, secret);
-          await interaction.reply({
-            content: msg,
-            ephemeral: true
-          });
-          break;
-        case 'undefined':
-          await interaction.reply({
-            content: error
-              ? format(BOT.MESSAGE.LINK_FAIL, error)
-              : BOT.MESSAGE.LINK_OK,
-            ephemeral: true
-          });
-          break;
-      }
-    } catch (e: any) {
-      throw new Error(`sendLinkReply: ${e.message}`);
-    }
-  };
-
-  sendBackupReply = async (
-    platformId: string,
-    mnemonic: string,
-    interaction: DiscordMessage
-  ) => {
-    try {
-      await interaction.reply({
-        content: format(BOT.MESSAGE.BACKUP, mnemonic),
-        ephemeral: true
-      });
-    } catch (e: any) {
-      throw new Error(`sendBackupReply: ${e.message}`);
-    }
-  };
-
   private _registerCommands = async (guildId: string) => {
     try {
       await this.client.rest.put(
@@ -319,14 +339,15 @@ implements Platform {
         { body: this.commands },
       );
     } catch (e: any) {
-        // And of course, make sure you catch and log any errors!
-        throw new Error(`_registerCommands: ${e.message}`);
+      // And of course, make sure you catch and log any errors!
+      throw new Error(`_registerCommands: ${e.message}`);
     }
   };
   private _handleReady = () => {
     this._setRandomActivity();
     this.activityInterval = setInterval(this._setRandomActivity, 10000);
   };
+  
   private _handleDirectMessage = async (message: Message) => {
     const {
       author,
@@ -341,12 +362,13 @@ implements Platform {
     const amount = Number(words[1]);
     const secret = words[1];
     const wAddress = words[2] || null;
+    const platformId = author.id;
     switch (command) {
       case "balance":
-        this.emit('Balance', 'discord', author.id, message);
+        await this.handleBalanceCommand(message, platformId);
         break;
       case "deposit":
-        this.emit('Deposit', 'discord', author.id);
+        await this.handleDepositCommand(message, platformId);
         break;
       case "withdraw":
         if (words.length < 3) {
@@ -360,13 +382,18 @@ implements Platform {
           await message.reply("The value for withdrawal must be greater than 0.");
           break;
         }
-        this.emit('Withdraw', 'discord', author.id, amount, wAddress);
+        await this.handleWithdrawCommand(
+          message,
+          platformId,
+          amount.toString(),
+          wAddress
+        );
         break;
       case 'link':
-        this.emit('Link', 'discord', author.id, secret, message);
+        await this.handleLinkCommand(message, platformId, secret);
         break;
       case 'backup':
-        this.emit('Backup', 'discord', author.id, message);
+        await this.handleBackupCommand(message, platformId)
         break;
       default:
         message.reply(
@@ -384,6 +411,7 @@ implements Platform {
         break;
     }
   }
+  
   private _handleCommandMessage = async (
     interaction: ChatInputCommandInteraction
   ) => {
@@ -391,13 +419,15 @@ implements Platform {
       return;
     }
     const {
-      user,
+      user: {
+        id, username, discriminator
+      },
       channelId,
       options,
       commandName
     } = interaction;
-    const fromUser = `${user.username}#${user.discriminator}`;
-    const platformId = user.id;
+    const fromUsername = `${username}#${discriminator}`;
+    const platformId = id;
     // console.log(
     //   `Command sent from ${fromUser} on channel ` +
     //   `${this.guildId}:${channelId} = ${commandName}`
@@ -407,10 +437,11 @@ implements Platform {
     try {
       switch (commandName) {
         case "give":
-          //Process give shit.
           const to = options.getUser('to');
-          const toId = to.id
+          const toId = to.id;
+          const giveAmount = xpiAmount.toString();
           const toUsername = `${to.username}#${to.discriminator}`;
+          // must give more than 0 XPI
           if (xpiAmount <= 0) {
             await interaction.reply({
               content: format(BOT.MESSAGE.ERR_AMOUNT_INVALID, xpiAmount),
@@ -426,6 +457,7 @@ implements Platform {
             });
             break;
           }
+          // can't give to bot
           if (this.clientId == to.id) {
             await interaction.reply({
               content: format(BOT.MESSAGE.ERR_GIVE_TO_BOT),
@@ -433,54 +465,37 @@ implements Platform {
             });
             break;
           }
-          this.emit(
-            'Give',
-            'discord', 
-            null,
-            null,
+          await this.handleGiveCommand(
+            interaction,
             platformId,
-            fromUser,
+            fromUsername,
             toId,
             toUsername,
-            xpiAmount.toString(),
-            interaction
+            giveAmount
           );
           break;
         case "balance":
-          this.emit('Balance', 'discord', platformId, interaction);
+          await this.handleBalanceCommand(interaction, platformId);
           break;
         case "deposit":
-          this.emit('Deposit', 'discord', platformId);
-          await interaction.reply({
-            content: `Please check your DMs for reply message.`,
-            ephemeral: true
-          });
+          await this.handleDepositCommand(interaction, platformId);
           break;
         case "withdraw":
-          this.emit(
-            'Withdraw',
-            'discord',
+          const outAmount = xpiAmount.toString();
+          const outAddress = options.getString('address');
+          await this.handleWithdrawCommand(
+            interaction,
             platformId,
-            xpiAmount.toString(),
-            options.getString("address")
+            outAmount,
+            outAddress
           );
-          await interaction.reply({
-            content: `Please check your DMs for reply message.`,
-            ephemeral: true
-          });
           break;
         case 'link':
           const secret = options.getString('secret') || undefined;
-          this.emit('Link', 'discord', platformId, secret, interaction);
+          await this.handleLinkCommand(interaction, platformId, secret);
           break;
         case 'backup':
-          this.emit('Backup', 'discord', platformId, interaction);
-          break;
-        case "ping":
-          await interaction.reply({ content: `Pong! 🏓` });
-          break;
-        case "ilovelotus":
-          await interaction.reply({ content: `👁️ 💖 🪷!` });
+          await this.handleBackupCommand(interaction, platformId);
           break;
         default:
           //This should NEVER happen as we are registering commands directly to the server.
