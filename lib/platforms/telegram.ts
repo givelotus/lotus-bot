@@ -89,10 +89,9 @@ implements Platform {
         }
       );
     } catch (e: any) {
-      this.handler.logPlatformNotifyError(
+      this.handler.log(
         `telegram`,
-        `handleBalanceCommand`,
-        e.message
+        `failed to notify user: ${e.message}`
       );
     }
   };

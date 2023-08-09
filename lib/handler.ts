@@ -40,11 +40,6 @@ export class Handler extends EventEmitter {
     module: string,
     message: string
   ) => console.log(`${module.toUpperCase()}: ${message}`);
-  logPlatformNotifyError = (
-    platform: PlatformName,
-    msg: string,
-    error: string
-  ) => this.log(platform, `${msg}: failed to notify user: ${error}`);
   /* Called by any bot module that runs into unrecoverable error */
   shutdown = () => this.emit('Shutdown');
   /** Make sure we process deposits we received while offline */
