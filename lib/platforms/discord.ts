@@ -172,7 +172,10 @@ implements Platform {
         ephemeral: true
       });
     } catch (e: any) {
-      this.handler.log('discord', e.message);
+      this.handler.log(
+        'discord',
+        `${platformId}: handleBalanceCommand: ${e.message}`
+      );
     }
   };
 
@@ -197,7 +200,10 @@ implements Platform {
         ephemeral: true
       });
     } catch (e: any) {
-      this.handler.log('discord', `handleDepositCommand: ${e.message}`);
+      this.handler.log(
+        'discord',
+        `${platformId}: handleDepositCommand: ${e.message}`
+      );
     }
   };
 
@@ -227,7 +233,10 @@ implements Platform {
         .setDescription(`${fromUser}, you have given ${amount} XPI to ${toUser}! 🪷`);
       await interaction.reply({ embeds: [giveReplyEmbed] });
     } catch (e: any) {
-      this.handler.log('discord', `handleGiveCommand: ${e.message}`);
+      this.handler.log(
+        'discord',
+        `${fromId}: handleGiveCommand: ${e.message}`
+      );
     }
   };
 
@@ -258,7 +267,10 @@ implements Platform {
         ephemeral: true
       });
     } catch (e: any) {
-      this.handler.log('discord', `handleWithdrawCommand: ${e.message}`);
+      this.handler.log(
+        'discord',
+        `${platformId}: handleWithdrawCommand: ${e.message}`
+      );
     }
   };
 
@@ -288,7 +300,10 @@ implements Platform {
         ephemeral: true
       });
     } catch (e: any) {
-      this.handler.log('discord', `handleLinkCommand: ${e.message}`);
+      this.handler.log(
+        'discord',
+        `${platformId}: handleLinkCommand: ${e.message}`
+      );
     }
   };
 
@@ -306,7 +321,10 @@ implements Platform {
         ephemeral: true
       });
     } catch (e: any) {
-      this.handler.log('discord', `handleBackupCommand: ${e.message}`);
+      this.handler.log(
+        'discord',
+        `${platformId}: handleBackupCommand: ${e.message}`
+      );
     }
   };
 
@@ -328,6 +346,7 @@ implements Platform {
       const userObj = await this.client.users.fetch(platformId);
       await userObj.send({ embeds: [embedMessage] });
     } catch (e: any) {
+      // error is logged in lotusbot.ts
       throw new Error(`sendDepositReceived: ${e.message}`);
     }
   };
@@ -340,7 +359,7 @@ implements Platform {
       );
     } catch (e: any) {
       // And of course, make sure you catch and log any errors!
-      throw new Error(`_registerCommands: ${e.message}`);
+      throw new Error(`${guildId}: _registerCommands: ${e.message}`);
     }
   };
   private _handleReady = () => {
