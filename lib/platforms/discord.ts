@@ -254,7 +254,10 @@ implements Platform {
         outAddress
       );
       if (typeof result == 'string') {
-        await interaction.reply(format(BOT.MESSAGE.WITHDRAW_FAIL, result));
+        await interaction.reply({
+          content: format(BOT.MESSAGE.WITHDRAW_FAIL, result),
+          ephemeral: true
+        });
         throw new Error(result);
       }
       const embedMessage = new EmbedBuilder()
