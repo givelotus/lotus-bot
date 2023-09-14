@@ -119,7 +119,7 @@ export default class LotusBot {
     this._log(MAIN, 'shutting down');
     /** Shutdown enabled platforms */
     for (const [ name ] of this.platforms) {
-      await this.bots[name].stop();
+      await this.bots[name]?.stop();
     }
     this.wallet?.closeWsEndpoint();
     await this.prisma?.disconnect();
