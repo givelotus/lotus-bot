@@ -13,9 +13,9 @@ type ParsedConfig = {
   wallet: {
     chronikUrl: string,
     explorerUrl: string,
-  },
-  tx: {
-    feeRate: number
+    tx: {
+      feeRate: number
+    },
   },
   dbUrl: string
 };
