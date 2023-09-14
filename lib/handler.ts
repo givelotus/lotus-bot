@@ -55,7 +55,7 @@ export class Handler extends EventEmitter {
         await this._saveDeposit(deposit);
       }
     } catch (e: any) {
-      throw new Error(`_initReconcileDeposits: ${e.message}`);
+      throw new Error(`init: ${e.message}`);
     }
   };
   /**  */

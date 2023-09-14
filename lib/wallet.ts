@@ -225,11 +225,11 @@ export class WalletManager extends EventEmitter {
         if (tx.inputAmount < outSats) {
           continue;
         }
-        tx.feePerByte(config.tx.feeRate);
+        tx.feePerByte(config.wallet.tx.feeRate);
         // Set current key's address as change address
         tx.change(key.address);
         const outScript = this._getScriptFromAddress(outAddress);
-        const txFee = tx._estimateSize() * config.tx.feeRate;
+        const txFee = tx._estimateSize() * config.wallet.tx.feeRate;
         tx.addOutput(
           this._toOutput(
             // subtract fee from output amount if required
@@ -293,7 +293,7 @@ export class WalletManager extends EventEmitter {
         return true;
       })
     } catch (e: any) {
-      throw new Error(`_consolidateUtxos: ${e.message}`);
+      throw new Error(`_reconcileUtxos: ${e.message}`);
     }
   };
   /**
