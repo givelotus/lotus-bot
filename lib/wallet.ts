@@ -293,7 +293,7 @@ export class WalletManager extends EventEmitter {
         return true;
       })
     } catch (e: any) {
-      throw new Error(`_consolidateUtxos: ${e.message}`);
+      throw new Error(`_reconcileUtxos: ${e.message}`);
     }
   };
   /**
