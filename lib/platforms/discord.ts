@@ -133,7 +133,7 @@ implements Platform {
       },
     ];
     try {
-      this.client.on('ready', this._handleReady);
+      // this.client.on('ready', this._handleReady);
       this.client.on('messageCreate', this._handleDirectMessage);
       this.client.on('interactionCreate', this._handleCommandMessage);
       this.client.token = apiKey;
@@ -153,7 +153,7 @@ implements Platform {
   };
   /** Deactivate the bot */
   stop = async () => {
-    clearInterval(this.activityInterval);
+    // clearInterval(this.activityInterval);
     this.client.destroy();
   };
   getBotId = () => this.clientId;
