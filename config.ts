@@ -37,8 +37,8 @@ class Config {
         discord: process.env.APIKEY_DISCORD
       },
       discord: {
-        clientId:process.env.CLIENTID_DISCORD,
-        guildId:process.env.GUILDID_DISCORD
+        clientId: process.env.CLIENTID_DISCORD,
+        guildId: process.env.GUILDID_DISCORD
       },
       wallet: {
         chronikUrl: process.env.WALLET_CHRONIK_URL,
